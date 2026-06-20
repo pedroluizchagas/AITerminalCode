@@ -15,7 +15,9 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/pedrochagas/Documentos/Projetos/AITerminalControl/daemon
-ExecStart=/usr/bin/env pnpm start
+# Serviço --user tem PATH mínimo: incluímos node (nvm), pnpm e bun explicitamente.
+Environment=PATH=/home/pedrochagas/.nvm/versions/node/v24.14.1/bin:/home/pedrochagas/.local/share/pnpm:/home/pedrochagas/.bun/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/home/pedrochagas/.local/share/pnpm/pnpm start
 Restart=always
 RestartSec=5
 
