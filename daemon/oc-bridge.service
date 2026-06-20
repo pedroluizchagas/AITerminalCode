@@ -1,0 +1,23 @@
+# systemd --user unit para manter o daemon sempre vivo.
+# Instalar:
+#   mkdir -p ~/.config/systemd/user
+#   cp daemon/oc-bridge.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now oc-bridge
+#   loginctl enable-linger pedrochagas   # roda mesmo sem sessão aberta
+# Logs: journalctl --user -u oc-bridge -f
+
+[Unit]
+Description=oc-bridge (AITerminalControl) — ponte OpenClaude <-> Supabase
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pedrochagas/Documentos/Projetos/AITerminalControl/daemon
+ExecStart=/usr/bin/env pnpm start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,81 @@
+@import 'tailwindcss';
+
+/*
+  Tailwind v4 — tokens de design via @theme. App dark-first, mobile-first.
+  Paleta neutra fria + accent âmbar (combina com "terminal").
+*/
+@theme {
+  --color-bg: #0a0a0b;
+  --color-surface: #131316;
+  --color-surface-2: #1b1b20;
+  --color-border: #26262d;
+  --color-fg: #e8e8ea;
+  --color-muted: #9a9aa3;
+  --color-faint: #6b6b73;
+  --color-accent: #f5a623;
+  --color-accent-fg: #1a1206;
+  --color-danger: #ef4444;
+  --color-success: #22c55e;
+  --color-info: #38bdf8;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Fira Code', Menlo,
+    Consolas, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Respeita notch / barra inferior em telas de celular. */
+  overscroll-behavior-y: none;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* Scrollbar discreta (desktop). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 9999px;
+}
+
+/* Quebra de palavra agressiva para conteúdo de terminal/JSON. */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Cursor piscando do stream ao vivo. */
+@keyframes ati-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+.ati-caret::after {
+  content: '▋';
+  margin-left: 1px;
+  color: var(--color-accent);
+  animation: ati-blink 1s step-end infinite;
+}

@@ -1,0 +1,30 @@
+# deps
+node_modules/
+.pnp
+.pnp.js
+
+# env / segredos (NUNCA commitar)
+.env
+.env.*
+!.env.example
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
+
+# builds
+dist/
+.next/
+out/
+build/
+
+# vercel
+.vercel/
+
+# daemon (config local com refresh token / segredos)
+.config/
+*.local.json
+
+# os
+.DS_Store
+*.log

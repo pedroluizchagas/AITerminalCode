@@ -1,0 +1,20 @@
+import 'dotenv/config'
+import os from 'node:os'
+
+function req(name: string): string {
+  const v = process.env[name]
+  if (!v) throw new Error(`Variável de ambiente faltando: ${name} (ver daemon/.env.example)`)
+  return v
+}
+
+export const config = {
+  supabaseUrl: req('SUPABASE_URL'),
+  supabaseAnonKey: req('SUPABASE_ANON_KEY'),
+  ownerEmail: req('OWNER_EMAIL'),
+  ownerPassword: req('OWNER_PASSWORD'),
+  openclaudeBin: req('OPENCLAUDE_BIN'),
+  daemonName: process.env.DAEMON_NAME?.trim() || os.hostname(),
+  defaultCwd: process.env.DEFAULT_CWD?.trim() || os.homedir(),
+  autoApproveReadonly: (process.env.AUTO_APPROVE_READONLY ?? 'true') !== 'false',
+  heartbeatMs: 20_000,
+}
