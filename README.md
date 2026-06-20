@@ -57,10 +57,15 @@ supabase db push
 - [x] `supabase init` + migrations (schema/RLS/realtime/broadcast/interrupt) aplicadas e verificadas
 - [x] Conta do dono criada (daemon e celular usam a MESMA conta → RLS bate)
 - [x] **Fase 1 — código completo**: `packages/protocol` + `daemon` (oc-bridge) + `apps/pwa`
-      (Next.js). Typecheck e build da PWA passando.
-- [ ] Runtime: instalar bun + buildar OpenClaude (`dist/cli.mjs`)
-- [ ] Auth do OpenClaude: `node dist/cli.mjs setup-token` (login na assinatura Claude, 1x)
-- [ ] Subir daemon (systemd) + deploy da PWA na Vercel + teste ponta-a-ponta
+      (Next.js). Typecheck e build passando.
+- [x] Código no GitHub: `pedroluizchagas/AITerminalCode` (branch main)
+- [x] **PWA em produção na Vercel**: https://aiterminalcode.vercel.app (rootDir=apps/pwa,
+      env vars, redirect de auth configurado). Smoke test OK.
+- [x] OpenClaude buildado (`dist/cli.mjs`, v0.3.0)
+- [x] Daemon verificado: autentica, registra-se, assina Realtime
+- [ ] **Você:** `node <OPENCLAUDE_BIN> setup-token` (login na assinatura Claude, 1x, interativo)
+- [ ] Subir daemon (systemd) + teste ponta-a-ponta pelo celular
+- [ ] (Opcional) auto-deploy: adicionar conexão de login GitHub na conta Vercel
 
 ## Auth do OpenClaude (assinatura, não API key)
 O daemon roda o OpenClaude em modo `--print`, que lê o OAuth da sua conta Claude.
