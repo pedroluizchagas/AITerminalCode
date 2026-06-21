@@ -80,9 +80,11 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     const channel = supabase.channel(id, {
       config: { private: true, broadcast: { self: false } },
     })
-    channel.on('broadcast', { event: 'o' }, ({ payload }) =>
-      term.write((payload as { d?: string }).d ?? ''),
-    )
+    channel.on('broadcast', { event: 'o' }, ({ payload }) => {
+      // remove o enable/disable de bracketed-paste: assim nenhum colar injeta marcadores
+      const d = ((payload as { d?: string }).d ?? '').replace(/\x1b\[\?2004[hl]/g, '')
+      term.write(d)
+    })
     channel.on('broadcast', { event: 'x' }, () => {
       setPhase('closed')
       setNote('Shell encerrado.')
@@ -151,18 +153,23 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     termRef.current?.focus()
   }
 
-  // Colar no mobile: envia o texto CRU direto ao PTY (sem term.paste, que injetava
-  // marcadores de bracketed-paste e corrompia o comando). Remove a quebra final
-  // para não disparar o comando sozinho ao colar uma URL.
+  // Colar no mobile, à prova de falhas: tenta a API de clipboard; se não rolar
+  // (iOS bloqueia bastante), abre um campo nativo onde você cola. Envia o texto
+  // CRU direto ao PTY (sem bracketed-paste). Remove a quebra final p/ não disparar.
   const paste = async () => {
+    let text = ''
     try {
-      const text = (await navigator.clipboard.readText()).replace(/\r?\n$/, '')
-      if (text) {
-        void channelRef.current?.send({ type: 'broadcast', event: 'i', payload: { d: text } })
-        termRef.current?.focus()
-      }
+      text = await navigator.clipboard.readText()
     } catch {
-      window.alert('Permita o acesso à área de transferência para colar.')
+      text = ''
+    }
+    if (!text) {
+      text = window.prompt('Cole o texto aqui e toque em OK:') ?? ''
+    }
+    text = text.replace(/\r?\n$/, '')
+    if (text && channelRef.current) {
+      void channelRef.current.send({ type: 'broadcast', event: 'i', payload: { d: text } })
+      termRef.current?.focus()
     }
   }
 
