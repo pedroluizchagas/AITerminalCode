@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <!-- Maskable: arte dentro da "safe zone" (~80% central), fundo cheio até as bordas. -->
+  <!-- Maskable: a arte fica na safe zone (~66% central); fundo cheio até as bordas. -->
   <rect width="512" height="512" fill="#0a0a0b"/>
-  <g stroke="#f5a623" stroke-width="30" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <path d="M170 190 L238 256 L170 322"/>
-    <path d="M278 322 L356 322"/>
-  </g>
+  <path d="M196 196 L256 256 L196 316" fill="none" stroke="#f5a623" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="286" y="214" width="62" height="84" rx="13" fill="#f5a623"/>
 </svg>

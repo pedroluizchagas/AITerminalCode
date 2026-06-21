@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { VAPID_PUBLIC_KEY } from '@/lib/env'
+import { IconBell } from '@/components/icons'
 
 type PushState = 'checking' | 'idle' | 'on' | 'busy' | 'denied' | 'unsupported'
 
@@ -81,7 +82,11 @@ export function EnablePush({ ownerId }: { ownerId: string }) {
   if (state === 'unsupported' || state === 'checking') return null
 
   if (state === 'on') {
-    return <span className="text-xs text-[var(--color-faint)]">🔔 Notificações ativas</span>
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-[var(--color-faint)]">
+        <IconBell size={13} /> Notificações ativas
+      </span>
+    )
   }
   if (state === 'denied') {
     return (
@@ -95,9 +100,9 @@ export function EnablePush({ ownerId }: { ownerId: string }) {
       type="button"
       onClick={enable}
       disabled={state === 'busy'}
-      className="text-xs text-[var(--color-muted)] underline underline-offset-2 transition active:opacity-60 disabled:opacity-50"
+      className="inline-flex items-center gap-1.5 text-xs text-[var(--color-muted)] underline underline-offset-2 transition active:opacity-60 disabled:opacity-50"
     >
-      {state === 'busy' ? 'Ativando…' : '🔔 Ativar notificações'}
+      <IconBell size={13} /> {state === 'busy' ? 'Ativando…' : 'Ativar notificações'}
     </button>
   )
 }

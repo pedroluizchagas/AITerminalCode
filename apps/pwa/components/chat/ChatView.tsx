@@ -22,6 +22,7 @@ import { MessageItem } from './MessageItem'
 import { PermissionCard, type PermissionDecision } from './PermissionCard'
 import { Composer } from './Composer'
 import { SessionActions } from '@/components/SessionActions'
+import { IconChevronLeft } from '@/components/icons'
 
 type AnyPayload = Record<string, unknown>
 
@@ -232,7 +233,7 @@ export function ChatView({
           aria-label="Voltar"
           className="grid size-9 shrink-0 place-items-center rounded-lg text-[var(--color-muted)] transition active:bg-[var(--color-surface)]"
         >
-          ‹
+          <IconChevronLeft size={22} />
         </Link>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold">

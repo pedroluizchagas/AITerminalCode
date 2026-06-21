@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { IconSend, IconStop } from '@/components/icons'
 
 export function Composer({
   onSend,
@@ -50,9 +51,9 @@ export function Composer({
           <button
             type="button"
             onClick={onInterrupt}
-            className="rounded-lg border border-[var(--color-danger)]/50 px-3 py-1 text-xs font-medium text-[var(--color-danger)] transition active:scale-95"
+            className="inline-flex items-center gap-1 rounded-lg border border-[var(--color-danger)]/50 px-3 py-1 text-xs font-medium text-[var(--color-danger)] transition active:scale-95"
           >
-            Interromper
+            <IconStop size={13} /> Interromper
           </button>
         </div>
       )}
@@ -87,7 +88,7 @@ export function Composer({
           {sending ? (
             <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : (
-            <span className="-mt-0.5 text-lg leading-none">↑</span>
+            <IconSend size={18} />
           )}
         </button>
       </div>

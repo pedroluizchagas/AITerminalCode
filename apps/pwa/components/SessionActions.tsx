@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { IconEllipsis, IconPencil, IconPower, IconTrash } from '@/components/icons'
 import type { SessionRow } from '@/lib/database.types'
 
 type SessionLite = Pick<SessionRow, 'id' | 'title' | 'status'>
@@ -69,7 +70,7 @@ export function SessionActions({
         }}
         className="grid size-9 place-items-center rounded-lg text-[var(--color-faint)] transition active:bg-[var(--color-surface-2)] disabled:opacity-50"
       >
-        <span className="text-lg leading-none">⋯</span>
+        <IconEllipsis size={18} />
       </button>
 
       {open && (
@@ -85,11 +86,13 @@ export function SessionActions({
             className="fixed inset-0 z-20 cursor-default"
           />
           <div className="absolute right-1 top-9 z-30 w-40 overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-2)] py-1 shadow-xl">
-            <MenuItem onClick={rename}>Renomear</MenuItem>
-            <MenuItem onClick={toggleClose}>
+            <MenuItem onClick={rename} icon={<IconPencil size={16} />}>
+              Renomear
+            </MenuItem>
+            <MenuItem onClick={toggleClose} icon={<IconPower size={16} />}>
               {session.status === 'closed' ? 'Reabrir' : 'Encerrar'}
             </MenuItem>
-            <MenuItem onClick={remove} danger>
+            <MenuItem onClick={remove} icon={<IconTrash size={16} />} danger>
               Excluir
             </MenuItem>
           </div>
@@ -103,10 +106,12 @@ function MenuItem({
   children,
   onClick,
   danger,
+  icon,
 }: {
   children: React.ReactNode
   onClick: () => void
   danger?: boolean
+  icon: React.ReactNode
 }) {
   return (
     <button
@@ -116,10 +121,11 @@ function MenuItem({
         e.stopPropagation()
         void onClick()
       }}
-      className={`block w-full px-4 py-2.5 text-left text-sm transition active:bg-[var(--color-surface)] ${
+      className={`flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm transition active:bg-[var(--color-surface)] ${
         danger ? 'text-[var(--color-danger)]' : 'text-[var(--color-fg)]'
       }`}
     >
+      <span className={danger ? '' : 'text-[var(--color-faint)]'}>{icon}</span>
       {children}
     </button>
   )

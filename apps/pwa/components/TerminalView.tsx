@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { createClient } from '@/lib/supabase/client'
+import { IconChevronLeft, IconTerminal } from '@/components/icons'
 import type { DaemonRow } from '@/lib/database.types'
 
 type XTerm = import('@xterm/xterm').Terminal
@@ -160,7 +161,7 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
           aria-label="Voltar"
           className="grid size-9 shrink-0 place-items-center rounded-lg text-[var(--color-muted)] transition active:bg-[var(--color-surface)]"
         >
-          ‹
+          <IconChevronLeft size={22} />
         </a>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold">Terminal</h1>
@@ -195,7 +196,9 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
       {/* Tela de armar */}
       {(phase === 'idle' || phase === 'closed') && (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-          <div className="text-4xl">⌨️</div>
+          <div className="grid size-16 place-items-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-accent)]">
+            <IconTerminal size={30} />
+          </div>
           <p className="max-w-xs text-sm text-[var(--color-muted)]">
             Abre um terminal real na máquina para você rodar o que o agente não pode (sudo,
             logins interativos…). Fica <strong className="text-[var(--color-fg)]">desarmado</strong>{' '}

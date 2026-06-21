@@ -6,6 +6,7 @@ import { NewSessionButton } from '@/components/NewSessionButton'
 import { SessionActions } from '@/components/SessionActions'
 import { SignOutButton } from '@/components/SignOutButton'
 import { EnablePush } from '@/components/EnablePush'
+import { IconTerminal, IconHost } from '@/components/icons'
 import type { DaemonRow, SessionRow } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,7 @@ export default async function HomePage() {
 
   const daemonList = daemons ?? []
   const sessionList = sessions ?? []
+  const daemonName = new Map(daemonList.map((d) => [d.id, d.name]))
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col">
@@ -61,7 +63,7 @@ export default async function HomePage() {
           aria-label="Terminal"
           className="grid size-9 shrink-0 place-items-center rounded-lg text-[var(--color-muted)] transition active:bg-[var(--color-surface)]"
         >
-          <span className="text-lg leading-none">⌨</span>
+          <IconTerminal size={19} />
         </Link>
         <SignOutButton />
       </header>
@@ -95,9 +97,15 @@ export default async function HomePage() {
                   {s.project_path}
                 </p>
               )}
-              <p className="mt-1 text-xs text-[var(--color-faint)]">
-                {SESSION_STATUS_LABEL[s.status]} · {formatWhen(s.updated_at)}
-              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--color-faint)]">
+                <span className="inline-flex items-center gap-1 rounded-md bg-[var(--color-surface)] px-1.5 py-0.5 font-mono text-[var(--color-muted)]">
+                  <IconHost size={12} />
+                  {s.daemon_id ? (daemonName.get(s.daemon_id) ?? 'máquina removida') : 'sem máquina'}
+                </span>
+                <span>
+                  {SESSION_STATUS_LABEL[s.status]} · {formatWhen(s.updated_at)}
+                </span>
+              </div>
             </Link>
             <SessionActions session={{ id: s.id, title: s.title, status: s.status }} />
           </li>

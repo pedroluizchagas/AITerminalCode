@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { IconLock } from '@/components/icons'
 import type { PermissionRequestRow } from '@/lib/database.types'
 
 export interface PermissionDecision {
@@ -39,8 +40,8 @@ export function PermissionCard({
     <div className="flex justify-center">
       <div className="w-full max-w-[92%] rounded-2xl border border-[var(--color-accent)]/50 bg-[var(--color-accent)]/[0.06] p-4">
         <div className="flex items-center gap-2">
-          <span className="text-base" aria-hidden>
-            🔐
+          <span className="text-[var(--color-accent)]" aria-hidden>
+            <IconLock size={17} />
           </span>
           <p className="text-sm font-semibold">
             Permitir{' '}

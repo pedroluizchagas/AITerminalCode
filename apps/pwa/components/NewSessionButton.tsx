@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { IconPlus } from '@/components/icons'
 import type { DaemonRow, SessionRow } from '@/lib/database.types'
 
 export function NewSessionButton({
@@ -49,9 +50,9 @@ export function NewSessionButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="w-full rounded-xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-[var(--color-accent-fg)] transition active:scale-[0.99]"
+        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--color-accent)] px-4 py-3 text-sm font-semibold text-[var(--color-accent-fg)] transition active:scale-[0.99]"
       >
-        + Nova sessão
+        <IconPlus size={18} /> Nova sessão
       </button>
     )
   }
