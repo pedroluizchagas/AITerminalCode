@@ -28,6 +28,11 @@
   color-scheme: dark;
 }
 
+/* Safe area: empurra cabeçalhos fixos abaixo do notch/relógio (PWA standalone iOS). */
+@utility pt-safe {
+  padding-top: calc(env(safe-area-inset-top) + 0.75rem);
+}
+
 html,
 body {
   background-color: var(--color-bg);

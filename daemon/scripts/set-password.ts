@@ -49,9 +49,13 @@ function askHidden(query: string): Promise<string> {
           process.exit(1)
         } else if (code === 127 || code === 8) {
           // Backspace
-          input = input.slice(0, -1)
+          if (input.length > 0) {
+            input = input.slice(0, -1)
+            process.stdout.write('\b \b')
+          }
         } else if (code >= 32) {
           input += ch
+          process.stdout.write('*')
         }
       }
     }

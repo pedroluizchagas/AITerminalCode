@@ -55,7 +55,7 @@ export default async function HomePage() {
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col">
-      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-4 pb-3 pt-safe backdrop-blur">
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold">Sessões</h1>
           <div className="mt-0.5 flex items-center gap-2">

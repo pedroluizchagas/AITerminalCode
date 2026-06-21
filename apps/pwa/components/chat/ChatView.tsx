@@ -225,7 +225,7 @@ export function ChatView({
   return (
     <div className="mx-auto flex h-[100dvh] w-full max-w-2xl flex-col">
       {/* Header */}
-      <header className="flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-3 py-2.5 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-3 pb-2.5 pt-safe backdrop-blur">
         <Link
           href="/"
           aria-label="Voltar"
