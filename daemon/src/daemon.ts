@@ -13,6 +13,7 @@ import {
   type UserTurnPayload,
 } from '@ati/protocol'
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
+import { existsSync, statSync } from 'node:fs'
 import { config } from './config.js'
 import { log } from './log.js'
 import { spawnOpenClaude, type OcChild } from './openclaude.js'
@@ -240,6 +241,16 @@ export class Daemon {
 
     const session = await this.getSession(sessionId)
     const cwd = session.project_path || config.defaultCwd
+    if (!existsSync(cwd) || !statSync(cwd).isDirectory()) {
+      await this.reportError(
+        sessionId,
+        `Não consegui abrir o projeto: este caminho não existe nesta máquina.\n\n` +
+          `"${cwd}"\n\n` +
+          `Use um caminho absoluto válido (começando com "/"), ex.: ` +
+          `/home/pedrochagas/Documentos/Projetos/SeuProjeto`,
+      )
+      throw new Error(`cwd inválido: ${cwd}`)
+    }
     log.info(`spawn OpenClaude (session=${sessionId.slice(0, 8)}, cwd=${cwd})`)
 
     const child = spawnOpenClaude(
@@ -325,6 +336,21 @@ export class Daemon {
   // --------------------------------------------------------------------------
   // Persistência / realtime
   // --------------------------------------------------------------------------
+
+  /** Mostra um erro como evento no chat e libera o status (não fica "trabalhando"). */
+  private async reportError(sessionId: string, message: string): Promise<void> {
+    await this.setDaemonStatus('online')
+    await this.insertMessage(sessionId, 'event', {
+      type: 'result',
+      subtype: 'error_during_execution',
+      is_error: true,
+      result: message,
+      total_cost_usd: 0,
+      duration_ms: 0,
+      num_turns: 0,
+      session_id: '',
+    })
+  }
 
   private insertMessage(sessionId: string, kind: EnvelopeKind, payload: unknown) {
     return this.supabase.from('messages').insert({

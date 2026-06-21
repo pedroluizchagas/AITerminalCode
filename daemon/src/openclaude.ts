@@ -60,7 +60,10 @@ export function spawnOpenClaude(
     log.info(`processo OpenClaude saiu (cwd=${cwd}, code=${code})`)
     onExit(code)
   })
-  proc.on('error', (err) => log.error('falha ao iniciar OpenClaude:', err.message))
+  proc.on('error', (err) => {
+    log.error('falha ao iniciar OpenClaude:', err.message)
+    onExit(null) // limpa o child e reseta o status (spawn falhou, ex.: cwd inexistente)
+  })
 
   return {
     proc,

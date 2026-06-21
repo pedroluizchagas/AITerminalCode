@@ -22,6 +22,11 @@ export function NewSessionButton({
   const [error, setError] = useState<string | null>(null)
 
   async function create() {
+    const path = projectPath.trim()
+    if (path && !path.startsWith('/')) {
+      setError('O caminho do projeto deve ser absoluto — começar com "/" (ex.: /home/voce/projeto).')
+      return
+    }
     setBusy(true)
     setError(null)
     const supabase = createClient()
@@ -30,7 +35,7 @@ export function NewSessionButton({
       .insert({
         owner_id: ownerId, // RLS with check exige owner_id = auth.uid()
         title: title.trim() || null,
-        project_path: projectPath.trim() || null,
+        project_path: path || null,
         daemon_id: daemonId || null,
         status: 'active',
       })
