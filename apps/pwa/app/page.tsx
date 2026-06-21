@@ -56,6 +56,13 @@ export default async function HomePage() {
           <h1 className="truncate text-base font-semibold">Sessões</h1>
           <DaemonStatus initial={daemonList} />
         </div>
+        <Link
+          href="/terminal"
+          aria-label="Terminal"
+          className="grid size-9 shrink-0 place-items-center rounded-lg text-[var(--color-muted)] transition active:bg-[var(--color-surface)]"
+        >
+          <span className="text-lg leading-none">⌨</span>
+        </Link>
         <SignOutButton />
       </header>
 

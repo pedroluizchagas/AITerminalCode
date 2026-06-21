@@ -32,7 +32,12 @@ node dist/cli.mjs setup-token                    # cria ~/.claude/.credentials.j
 **4. Instalar deps do projeto**
 ```bash
 cd ../AITerminalCode && pnpm install
+# o terminal remoto usa node-pty (módulo nativo). No Linux ele COMPILA do fonte:
+pnpm approve-builds          # aprove "node-pty" (e esbuild/sharp) quando perguntar
+# se o daemon reclamar de "pty.node" ao subir, force o build:
+( cd node_modules/.pnpm/node-pty@*/node_modules/node-pty && npx -y node-gyp rebuild )
 ```
+> Requer `gcc`, `make`, `python3` (no Ubuntu/Pop!_OS: `sudo apt install build-essential python3`).
 
 **5. Criar `daemon/.env`** (copie do notebook e ajuste, ou parta do `.env.example`):
 - `SUPABASE_URL`, `SUPABASE_ANON_KEY` — iguais ao notebook

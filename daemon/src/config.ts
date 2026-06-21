@@ -19,4 +19,7 @@ export const config = {
   heartbeatMs: 20_000,
   // Encerra o processo OpenClaude de uma sessão após este tempo sem atividade.
   idleReapMs: Number(process.env.IDLE_REAP_MIN ?? '15') * 60_000,
+  // Encerra um terminal (PTY) após este tempo sem atividade (trava de segurança).
+  idleTermMs: Number(process.env.IDLE_TERM_MIN ?? '15') * 60_000,
+  shell: process.env.SHELL?.trim() || 'bash',
 }

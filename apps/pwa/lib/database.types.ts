@@ -15,6 +15,7 @@ export type MessageKind =
   | 'interrupt'
   | 'status'
 export type PermissionStatus = 'pending' | 'allowed' | 'denied' | 'expired'
+export type TerminalStatus = 'requested' | 'active' | 'closed'
 
 export type ProfileRow = {
   id: string
@@ -75,6 +76,16 @@ export type PushSubscriptionRow = {
   created_at: string
 }
 
+export type TerminalRow = {
+  id: string
+  owner_id: string
+  daemon_id: string
+  cwd: string | null
+  status: TerminalStatus
+  closed_reason: string | null
+  created_at: string
+}
+
 /** Helper genérico para definir Row/Insert/Update de uma tabela. */
 type TableDef<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
   Row: Row
@@ -113,6 +124,10 @@ export type Database = {
         PushSubscriptionRow,
         Omit<PushSubscriptionRow, 'id' | 'created_at'> &
           Partial<Pick<PushSubscriptionRow, 'id'>>
+      >
+      terminals: TableDef<
+        TerminalRow,
+        Pick<TerminalRow, 'owner_id' | 'daemon_id'> & Partial<TerminalRow>
       >
     }
     Views: Record<string, never>

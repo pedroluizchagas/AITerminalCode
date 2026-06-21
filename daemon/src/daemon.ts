@@ -17,6 +17,7 @@ import { config } from './config.js'
 import { log } from './log.js'
 import { spawnOpenClaude, type OcChild } from './openclaude.js'
 import { sendPush } from './push.js'
+import { TerminalManager } from './terminal.js'
 
 interface SessionRow {
   id: string
@@ -34,12 +35,15 @@ export class Daemon {
   private channels = new Map<string, RealtimeChannel>()
   private sessions = new Map<string, SessionRow>()
   private lastActivity = new Map<string, number>()
+  private terminals: TerminalManager
 
   constructor(
     private supabase: SupabaseClient,
     private ownerId: string,
     private daemonId: string,
-  ) {}
+  ) {
+    this.terminals = new TerminalManager(supabase, daemonId)
+  }
 
   // --------------------------------------------------------------------------
   // Ciclo de vida
@@ -68,6 +72,7 @@ export class Daemon {
 
     setInterval(() => void this.heartbeat(), config.heartbeatMs)
     setInterval(() => this.reapIdle(), 60_000)
+    this.terminals.start()
     log.info('daemon pronto — aguardando comandos do celular')
     await this.catchUp()
   }
@@ -163,6 +168,7 @@ export class Daemon {
   }
 
   async shutdown(): Promise<void> {
+    this.terminals.shutdown()
     for (const child of this.children.values()) child.kill()
     await this.setDaemonStatus('offline')
   }
