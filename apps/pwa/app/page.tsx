@@ -58,14 +58,16 @@ export default async function HomePage() {
           <h1 className="truncate text-base font-semibold">Sessões</h1>
           <DaemonStatus initial={daemonList} />
         </div>
-        <Link
-          href="/terminal"
-          aria-label="Terminal"
-          className="grid size-9 shrink-0 place-items-center rounded-lg text-[var(--color-muted)] transition active:bg-[var(--color-surface)]"
-        >
-          <IconTerminal size={19} />
-        </Link>
-        <SignOutButton />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link
+            href="/terminal"
+            aria-label="Terminal"
+            className="grid size-7 place-items-center rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-muted)] transition active:scale-95 hover:text-[var(--color-fg)]"
+          >
+            <IconTerminal size={16} />
+          </Link>
+          <SignOutButton />
+        </div>
       </header>
 
       <div className="border-b border-[var(--color-border)] px-4 py-3">
