@@ -8,23 +8,54 @@
  * conta Supabase e reescreve OWNER_PASSWORD em daemon/.env. Depois reinicie:
  *   systemctl --user restart oc-bridge
  */
-import 'dotenv/config'
+import { config as loadEnv } from 'dotenv'
 import { readFileSync, writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import readline from 'node:readline'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { createClient } from '@supabase/supabase-js'
 
+// resolve a pasta do daemon a partir do próprio script (independe do cwd)
+const daemonDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const envPath = resolve(daemonDir, '.env')
+loadEnv({ path: envPath })
+
+/** Lê uma linha do terminal sem ecoar o que é digitado (raw mode). */
 function askHidden(query: string): Promise<string> {
-  return new Promise((res) => {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-    // suprime o eco do que é digitado
-    ;(rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {}
+  return new Promise((res, rej) => {
+    const stdin = process.stdin
+    if (!stdin.isTTY) {
+      rej(new Error('Precisa de um terminal interativo (TTY). Rode direto no seu terminal.'))
+      return
+    }
     process.stdout.write(query)
-    rl.question('', (value) => {
-      rl.close()
-      process.stdout.write('\n')
-      res(value)
-    })
+    stdin.setRawMode(true)
+    stdin.resume()
+    stdin.setEncoding('utf8')
+    let input = ''
+    const onData = (chunk: string) => {
+      for (const ch of chunk) {
+        const code = ch.charCodeAt(0)
+        if (ch === '\r' || ch === '\n') {
+          stdin.setRawMode(false)
+          stdin.pause()
+          stdin.removeListener('data', onData)
+          process.stdout.write('\n')
+          res(input)
+          return
+        } else if (code === 3) {
+          // Ctrl+C
+          stdin.setRawMode(false)
+          process.stdout.write('\n')
+          process.exit(1)
+        } else if (code === 127 || code === 8) {
+          // Backspace
+          input = input.slice(0, -1)
+        } else if (code >= 32) {
+          input += ch
+        }
+      }
+    }
+    stdin.on('data', onData)
   })
 }
 
@@ -34,11 +65,12 @@ const email = process.env.OWNER_EMAIL
 const current = process.env.OWNER_PASSWORD
 
 if (!url || !anon || !email || !current) {
-  console.error('Faltam SUPABASE_URL / SUPABASE_ANON_KEY / OWNER_EMAIL / OWNER_PASSWORD em daemon/.env')
+  console.error(`Faltam variáveis em ${envPath} (SUPABASE_URL / SUPABASE_ANON_KEY / OWNER_EMAIL / OWNER_PASSWORD)`)
   process.exit(1)
 }
 
-const novo = await askHidden(`Nova senha para ${email} (mín. 6): `)
+console.log(`Conta: ${email}`)
+const novo = await askHidden('Nova senha (mín. 6, não aparece ao digitar): ')
 const conf = await askHidden('Confirme a nova senha: ')
 
 if (novo.length < 6) {
@@ -64,19 +96,14 @@ if (uerr) {
   process.exit(1)
 }
 
-// reescreve OWNER_PASSWORD em daemon/.env (cwd = pasta do daemon)
 try {
-  const envPath = resolve(process.cwd(), '.env')
   let content = readFileSync(envPath, 'utf8')
   content = /^OWNER_PASSWORD=.*$/m.test(content)
     ? content.replace(/^OWNER_PASSWORD=.*$/m, `OWNER_PASSWORD=${novo}`)
     : content + `\nOWNER_PASSWORD=${novo}\n`
   writeFileSync(envPath, content, { mode: 0o600 })
 } catch (err) {
-  console.error(
-    '⚠️ Senha trocada na conta, mas falhei ao atualizar daemon/.env:',
-    (err as Error).message,
-  )
+  console.error('⚠️ Senha trocada na conta, mas falhei ao atualizar daemon/.env:', (err as Error).message)
   console.error('   Edite OWNER_PASSWORD manualmente com a nova senha.')
   process.exit(1)
 }
