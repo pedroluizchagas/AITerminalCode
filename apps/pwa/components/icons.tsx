@@ -126,6 +126,15 @@ export function IconStop(p: IconProps) {
   )
 }
 
+export function IconClipboard(p: IconProps) {
+  return (
+    <Line {...p}>
+      <rect x="6" y="4" width="12" height="16" rx="2" />
+      <path d="M9 4V3.4A1.4 1.4 0 0 1 10.4 2h3.2A1.4 1.4 0 0 1 15 3.4V4" />
+    </Line>
+  )
+}
+
 /** Reticências verticais (menu de item) — pontos preenchidos. */
 export function IconEllipsis({ size = 20, ...rest }: IconProps) {
   return (

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import '@xterm/xterm/css/xterm.css'
 import { createClient } from '@/lib/supabase/client'
-import { IconChevronLeft, IconTerminal } from '@/components/icons'
+import { IconChevronLeft, IconClipboard, IconTerminal } from '@/components/icons'
 import type { DaemonRow } from '@/lib/database.types'
 
 type XTerm = import('@xterm/xterm').Terminal
@@ -151,6 +151,21 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     termRef.current?.focus()
   }
 
+  // Colar no mobile: lê a área de transferência e injeta via term.paste (o onData
+  // do xterm envia ao daemon, respeitando bracketed-paste). Mais confiável que o
+  // colar nativo no celular.
+  const paste = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text && termRef.current) {
+        termRef.current.paste(text)
+        termRef.current.focus()
+      }
+    } catch {
+      window.alert('Permita o acesso à área de transferência para colar.')
+    }
+  }
+
   const live = phase === 'active' || phase === 'arming'
 
   return (
@@ -234,6 +249,13 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
       {/* Barra de teclas especiais (mobile) */}
       {phase === 'active' && (
         <div className="flex gap-1.5 overflow-x-auto border-t border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => void paste()}
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-fg)] transition active:bg-[var(--color-surface-2)]"
+          >
+            <IconClipboard size={14} /> Colar
+          </button>
           {KEYS.map((k) => (
             <button
               key={k.label}
