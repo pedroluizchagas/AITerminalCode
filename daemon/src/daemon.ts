@@ -114,6 +114,7 @@ export class Daemon {
         .eq('status', 'active')
 
       for (const s of sessions ?? []) {
+        if (!(await this.routeToMe(s.id))) continue // só minhas sessões
         const { data: last } = await this.supabase
           .from('messages')
           .select('source, kind, payload, created_at')
@@ -135,6 +136,30 @@ export class Daemon {
     } catch (err) {
       log.warn('catch-up falhou:', (err as Error).message)
     }
+  }
+
+  /**
+   * Roteamento multi-máquina: este daemon só cuida das sessões atribuídas a ele.
+   *  - daemon_id === eu  → cuido;
+   *  - daemon_id de outro → ignoro;
+   *  - sem dono (null)   → reivindico atomicamente (só um daemon vence).
+   */
+  private async routeToMe(sessionId: string): Promise<boolean> {
+    const { data } = await this.supabase
+      .from('sessions')
+      .select('daemon_id')
+      .eq('id', sessionId)
+      .maybeSingle()
+    const did = (data as { daemon_id: string | null } | null)?.daemon_id ?? null
+    if (did === this.daemonId) return true
+    if (did) return false
+    const { data: claimed } = await this.supabase
+      .from('sessions')
+      .update({ daemon_id: this.daemonId })
+      .eq('id', sessionId)
+      .is('daemon_id', null)
+      .select('id')
+    return (claimed?.length ?? 0) > 0
   }
 
   async shutdown(): Promise<void> {
@@ -162,6 +187,7 @@ export class Daemon {
 
   private async handlePhoneMessage(row: PhoneRow): Promise<void> {
     try {
+      if (!(await this.routeToMe(row.session_id))) return // sessão de outra máquina
       if (row.kind === 'user_turn') {
         const { content } = row.payload as UserTurnPayload
         await this.setDaemonStatus('working')
