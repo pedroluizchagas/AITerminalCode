@@ -27,6 +27,8 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
   )
   const [phase, setPhase] = useState<Phase>('idle')
   const [note, setNote] = useState('')
+  const [recv, setRecv] = useState(0) // bytes recebidos do PTY (diagnóstico)
+  const [conn, setConn] = useState('') // status do canal Realtime (diagnóstico)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
@@ -83,13 +85,22 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     channel.on('broadcast', { event: 'o' }, ({ payload }) => {
       // remove o enable/disable de bracketed-paste: assim nenhum colar injeta marcadores
       const d = ((payload as { d?: string }).d ?? '').replace(/\x1b\[\?2004[hl]/g, '')
+      setRecv((n) => n + d.length)
       term.write(d)
     })
     channel.on('broadcast', { event: 'x' }, () => {
       setPhase('closed')
       setNote('Shell encerrado.')
     })
-    await channel.subscribe()
+    // garante o token do Realtime para o canal privado (Broadcast)
+    try {
+      await supabase.realtime.setAuth()
+    } catch {
+      /* ignore */
+    }
+    channel.subscribe((status) => {
+      setConn(status)
+    })
     channelRef.current = channel
 
     term.onData((d) => void channel.send({ type: 'broadcast', event: 'i', payload: { d } }))
@@ -187,14 +198,12 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
         </a>
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-sm font-semibold">Terminal</h1>
-          <p className="truncate text-[11px] text-[var(--color-muted)]">
-            {phase === 'active'
-              ? 'conectado'
-              : phase === 'arming'
-                ? 'abrindo…'
-                : phase === 'closed'
-                  ? note || 'encerrado'
-                  : 'desarmado'}
+          <p className="truncate font-mono text-[11px] text-[var(--color-muted)]">
+            {phase === 'active' || phase === 'arming'
+              ? `${conn || 'conectando…'} · ${recv}B`
+              : phase === 'closed'
+                ? note || 'encerrado'
+                : 'desarmado'}
           </p>
         </div>
         {live ? (
