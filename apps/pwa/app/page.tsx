@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { StatusDot } from '@/components/StatusDot'
+import { DaemonStatus } from '@/components/DaemonStatus'
 import { NewSessionButton } from '@/components/NewSessionButton'
 import { SignOutButton } from '@/components/SignOutButton'
 import { EnablePush } from '@/components/EnablePush'
-import type { DaemonRow, DaemonStatus, SessionRow } from '@/lib/database.types'
+import type { DaemonRow, SessionRow } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,25 +47,13 @@ export default async function HomePage() {
 
   const daemonList = daemons ?? []
   const sessionList = sessions ?? []
-  const overallStatus: DaemonStatus = daemonList.some((d) => d.status === 'working')
-    ? 'working'
-    : daemonList.some((d) => d.status === 'online')
-      ? 'online'
-      : 'offline'
 
   return (
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-2xl flex-col">
       <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg)]/90 px-4 pb-3 pt-safe backdrop-blur">
         <div className="min-w-0">
           <h1 className="truncate text-base font-semibold">Sessões</h1>
-          <div className="mt-0.5 flex items-center gap-2">
-            <StatusDot status={overallStatus} />
-            {daemonList.length > 0 && (
-              <span className="text-xs text-[var(--color-faint)]">
-                · {daemonList.length} daemon{daemonList.length > 1 ? 's' : ''}
-              </span>
-            )}
-          </div>
+          <DaemonStatus initial={daemonList} />
         </div>
         <SignOutButton />
       </header>
