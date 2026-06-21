@@ -151,15 +151,15 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     termRef.current?.focus()
   }
 
-  // Colar no mobile: lê a área de transferência e injeta via term.paste (o onData
-  // do xterm envia ao daemon, respeitando bracketed-paste). Mais confiável que o
-  // colar nativo no celular.
+  // Colar no mobile: envia o texto CRU direto ao PTY (sem term.paste, que injetava
+  // marcadores de bracketed-paste e corrompia o comando). Remove a quebra final
+  // para não disparar o comando sozinho ao colar uma URL.
   const paste = async () => {
     try {
-      const text = await navigator.clipboard.readText()
-      if (text && termRef.current) {
-        termRef.current.paste(text)
-        termRef.current.focus()
+      const text = (await navigator.clipboard.readText()).replace(/\r?\n$/, '')
+      if (text) {
+        void channelRef.current?.send({ type: 'broadcast', event: 'i', payload: { d: text } })
+        termRef.current?.focus()
       }
     } catch {
       window.alert('Permita o acesso à área de transferência para colar.')

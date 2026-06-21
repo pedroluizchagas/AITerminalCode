@@ -35,6 +35,7 @@ export class TerminalManager {
   ) {}
 
   start(): void {
+    void this.closeStale()
     this.supabase
       .channel('terminals-inbound')
       .on(
@@ -63,6 +64,15 @@ export class TerminalManager {
       .subscribe((s) => log.info('terminals channel:', s))
 
     setInterval(() => this.reapIdle(), 60_000)
+  }
+
+  /** Fecha terminais que ficaram 'active'/'requested' de antes do restart (PTYs mortos). */
+  private async closeStale(): Promise<void> {
+    await this.supabase
+      .from('terminals')
+      .update({ status: 'closed', closed_reason: 'daemon reiniciado' })
+      .eq('daemon_id', this.daemonId)
+      .in('status', ['requested', 'active'])
   }
 
   private async onRequest(row: TermRow): Promise<void> {
