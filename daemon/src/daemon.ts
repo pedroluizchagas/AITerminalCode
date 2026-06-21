@@ -59,6 +59,53 @@ export class Daemon {
 
     setInterval(() => void this.heartbeat(), config.heartbeatMs)
     log.info('daemon pronto — aguardando comandos do celular')
+    await this.catchUp()
+  }
+
+  /**
+   * Ao subir, recupera o que ficou pendente enquanto o daemon esteve fora:
+   *  - expira permissões órfãs (o processo que pediu morreu no restart);
+   *  - reprocessa o último user_turn ainda não respondido de cada sessão ativa
+   *    (ex.: você mandou um prompt com o PC desligado).
+   */
+  private async catchUp(): Promise<void> {
+    try {
+      const { data: expired } = await this.supabase
+        .from('permission_requests')
+        .update({ status: 'expired', decided_at: new Date().toISOString() })
+        .eq('owner_id', this.ownerId)
+        .eq('status', 'pending')
+        .select('id')
+      if (expired?.length) log.info(`catch-up: ${expired.length} permissão(ões) órfã(s) expirada(s)`)
+
+      const { data: sessions } = await this.supabase
+        .from('sessions')
+        .select('id')
+        .eq('owner_id', this.ownerId)
+        .eq('status', 'active')
+
+      for (const s of sessions ?? []) {
+        const { data: last } = await this.supabase
+          .from('messages')
+          .select('source, kind, payload, created_at')
+          .eq('session_id', s.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (!last || last.source !== 'phone' || last.kind !== 'user_turn') continue
+        // turnos recém-chegados são tratados pela subscription ao vivo
+        if (Date.now() - Date.parse(last.created_at as string) < 10_000) continue
+
+        const content = (last.payload as UserTurnPayload).content
+        log.info(`catch-up: turno pendente reprocessado (session=${s.id.slice(0, 8)})`)
+        await this.setDaemonStatus('working')
+        const child = await this.ensureChild(s.id)
+        child.write(buildUserTurn(content))
+      }
+    } catch (err) {
+      log.warn('catch-up falhou:', (err as Error).message)
+    }
   }
 
   async shutdown(): Promise<void> {
