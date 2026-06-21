@@ -5,6 +5,9 @@
 export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
 export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+/** Chave pública VAPID para Web Push (opcional; sem ela o botão de notificações some). */
+export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
 export function requireSupabaseEnv(): { url: string; anonKey: string } {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new Error(

@@ -16,6 +16,7 @@ import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import { config } from './config.js'
 import { log } from './log.js'
 import { spawnOpenClaude, type OcChild } from './openclaude.js'
+import { sendPush } from './push.js'
 
 interface SessionRow {
   id: string
@@ -160,6 +161,17 @@ export class Daemon {
         }
         if (msg.type === 'result') {
           await this.setDaemonStatus('online')
+          const ok = msg.subtype === 'success'
+          const snippet =
+            ok && typeof msg.result === 'string'
+              ? msg.result.slice(0, 120)
+              : 'Erro na execução'
+          void sendPush(this.supabase, this.ownerId, {
+            title: ok ? 'Tarefa concluída ✅' : 'Tarefa falhou ⚠️',
+            body: snippet,
+            sessionId,
+            tag: 'result',
+          })
         }
         await this.insertMessage(sessionId, 'event', msg)
       }
@@ -189,6 +201,12 @@ export class Daemon {
       status: 'pending',
     })
     await this.insertMessage(sessionId, 'permission_req', req)
+    void sendPush(this.supabase, this.ownerId, {
+      title: 'Aprovação necessária 🔐',
+      body: `O agente quer usar: ${tool}`,
+      sessionId,
+      tag: `perm-${req.request_id}`,
+    })
     log.info(`permissão pendente: ${tool} (aguardando celular)`)
   }
 

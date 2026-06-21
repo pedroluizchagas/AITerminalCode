@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { StatusDot } from '@/components/StatusDot'
 import { NewSessionButton } from '@/components/NewSessionButton'
 import { SignOutButton } from '@/components/SignOutButton'
+import { EnablePush } from '@/components/EnablePush'
 import type { DaemonRow, DaemonStatus, SessionRow } from '@/lib/database.types'
 
 export const dynamic = 'force-dynamic'
@@ -71,6 +72,9 @@ export default async function HomePage() {
 
       <div className="border-b border-[var(--color-border)] px-4 py-3">
         <NewSessionButton ownerId={user.id} daemons={daemonList} />
+        <div className="mt-2">
+          <EnablePush ownerId={user.id} />
+        </div>
       </div>
 
       <ul className="flex-1 divide-y divide-[var(--color-border)]">
