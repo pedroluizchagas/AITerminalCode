@@ -21,6 +21,7 @@ import { BROADCAST_STREAM_EVENT } from '@ati/protocol'
 import { MessageItem } from './MessageItem'
 import { PermissionCard, type PermissionDecision } from './PermissionCard'
 import { Composer } from './Composer'
+import { SessionActions } from '@/components/SessionActions'
 
 type AnyPayload = Record<string, unknown>
 
@@ -242,6 +243,7 @@ export function ChatView({
             {initInfo?.cwd || session.project_path || 'sem cwd'}
           </p>
         </div>
+        <SessionActions session={session} redirectOnDelete />
       </header>
 
       {/* Feed */}

@@ -17,4 +17,6 @@ export const config = {
   defaultCwd: process.env.DEFAULT_CWD?.trim() || os.homedir(),
   autoApproveReadonly: (process.env.AUTO_APPROVE_READONLY ?? 'true') !== 'false',
   heartbeatMs: 20_000,
+  // Encerra o processo OpenClaude de uma sessão após este tempo sem atividade.
+  idleReapMs: Number(process.env.IDLE_REAP_MIN ?? '15') * 60_000,
 }

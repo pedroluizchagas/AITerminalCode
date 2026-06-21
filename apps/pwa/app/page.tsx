@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { DaemonStatus } from '@/components/DaemonStatus'
 import { NewSessionButton } from '@/components/NewSessionButton'
+import { SessionActions } from '@/components/SessionActions'
 import { SignOutButton } from '@/components/SignOutButton'
 import { EnablePush } from '@/components/EnablePush'
 import type { DaemonRow, SessionRow } from '@/lib/database.types'
@@ -74,28 +75,24 @@ export default async function HomePage() {
           </li>
         )}
         {sessionList.map((s) => (
-          <li key={s.id}>
+          <li key={s.id} className="flex items-center pr-2">
             <Link
               href={`/session/${s.id}`}
-              className="flex items-center justify-between gap-3 px-4 py-4 transition active:bg-[var(--color-surface)]"
+              className="block min-w-0 flex-1 px-4 py-4 transition active:bg-[var(--color-surface)]"
             >
-              <div className="min-w-0">
-                <p className="truncate font-medium">
-                  {s.title?.trim() || 'Sessão sem título'}
+              <p className="truncate font-medium">
+                {s.title?.trim() || 'Sessão sem título'}
+              </p>
+              {s.project_path && (
+                <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-muted)]">
+                  {s.project_path}
                 </p>
-                {s.project_path && (
-                  <p className="mt-0.5 truncate font-mono text-xs text-[var(--color-muted)]">
-                    {s.project_path}
-                  </p>
-                )}
-                <p className="mt-1 text-xs text-[var(--color-faint)]">
-                  {SESSION_STATUS_LABEL[s.status]} · {formatWhen(s.updated_at)}
-                </p>
-              </div>
-              <span className="shrink-0 text-[var(--color-faint)]" aria-hidden>
-                ›
-              </span>
+              )}
+              <p className="mt-1 text-xs text-[var(--color-faint)]">
+                {SESSION_STATUS_LABEL[s.status]} · {formatWhen(s.updated_at)}
+              </p>
             </Link>
+            <SessionActions session={{ id: s.id, title: s.title, status: s.status }} />
           </li>
         ))}
       </ul>

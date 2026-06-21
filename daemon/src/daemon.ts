@@ -33,6 +33,7 @@ export class Daemon {
   private children = new Map<string, OcChild>()
   private channels = new Map<string, RealtimeChannel>()
   private sessions = new Map<string, SessionRow>()
+  private lastActivity = new Map<string, number>()
 
   constructor(
     private supabase: SupabaseClient,
@@ -55,11 +56,39 @@ export class Daemon {
           void this.handlePhoneMessage(payload.new as PhoneRow)
         },
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'sessions' },
+        (payload) => {
+          const row = payload.new as { id: string; status: string }
+          if (row.status === 'closed') this.killChild(row.id, 'sessão encerrada')
+        },
+      )
       .subscribe((status) => log.info('inbound channel:', status))
 
     setInterval(() => void this.heartbeat(), config.heartbeatMs)
+    setInterval(() => this.reapIdle(), 60_000)
     log.info('daemon pronto — aguardando comandos do celular')
     await this.catchUp()
+  }
+
+  /** Mata o processo OpenClaude de uma sessão (encerrada ou ociosa). */
+  private killChild(sessionId: string, reason: string): void {
+    const child = this.children.get(sessionId)
+    if (!child) return
+    log.info(`encerrando processo (session=${sessionId.slice(0, 8)}): ${reason}`)
+    child.kill()
+    this.children.delete(sessionId)
+    this.lastActivity.delete(sessionId)
+  }
+
+  /** Varre e encerra processos ociosos (libera memória). */
+  private reapIdle(): void {
+    const now = Date.now()
+    const stale = [...this.lastActivity.entries()]
+      .filter(([, ts]) => now - ts > config.idleReapMs)
+      .map(([sid]) => sid)
+    for (const sid of stale) this.killChild(sid, 'ocioso')
   }
 
   /**
@@ -137,6 +166,7 @@ export class Daemon {
         const { content } = row.payload as UserTurnPayload
         await this.setDaemonStatus('working')
         const child = await this.ensureChild(row.session_id)
+        this.lastActivity.set(row.session_id, Date.now())
         child.write(buildUserTurn(content))
         log.info(`turno recebido (session=${row.session_id.slice(0, 8)})`)
       } else if (row.kind === 'permission_res') {
@@ -185,14 +215,17 @@ export class Daemon {
       (msg) => void this.onChildMessage(sessionId, msg),
       () => {
         this.children.delete(sessionId)
+        this.lastActivity.delete(sessionId)
         void this.setDaemonStatus('online')
       },
     )
     this.children.set(sessionId, child)
+    this.lastActivity.set(sessionId, Date.now())
     return child
   }
 
   private async onChildMessage(sessionId: string, msg: Record<string, unknown>): Promise<void> {
+    this.lastActivity.set(sessionId, Date.now())
     try {
       if (isCanUseToolRequest(msg)) {
         await this.onPermissionRequest(sessionId, msg)
