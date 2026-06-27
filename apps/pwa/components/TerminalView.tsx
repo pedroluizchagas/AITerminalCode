@@ -29,18 +29,69 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
   const [note, setNote] = useState('')
   const [recv, setRecv] = useState(0) // bytes recebidos do PTY (diagnóstico)
   const [conn, setConn] = useState('') // status do canal Realtime (diagnóstico)
+  const [pasteOpen, setPasteOpen] = useState(false) // folha de colar (mobile)
+  const [pasteText, setPasteText] = useState('')
 
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<XTerm | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const termIdRef = useRef<string | null>(null)
   const cleanupRef = useRef<(() => void) | null>(null)
+  const pasteRef = useRef<HTMLTextAreaElement>(null)
 
   const close = useCallback(async () => {
     const id = termIdRef.current
     cleanupRef.current?.()
     if (id) await supabase.from('terminals').update({ status: 'closed' }).eq('id', id)
   }, [supabase])
+
+  // Envia bytes ao PTY (input do celular -> daemon).
+  const sendInput = useCallback((d: string) => {
+    void channelRef.current?.send({ type: 'broadcast', event: 'i', payload: { d } })
+  }, [])
+
+  // Insere texto no terminal remoto (texto CRU, sem bracketed-paste — que aparece
+  // literal fora de um prompt readline). Tira só a quebra FINAL pra não auto-rodar;
+  // quebras internas são intencionais (colar um script roda linha a linha, como
+  // num terminal de verdade). `run` acrescenta o Enter pra executar na hora.
+  const insertText = useCallback(
+    (text: string, run: boolean) => {
+      const t = text.replace(/\r?\n$/, '')
+      if (t) sendInput(t)
+      if (run) sendInput('\r')
+      termRef.current?.focus()
+    },
+    [sendInput],
+  )
+
+  // Folha de colar à prova de mobile. A Clipboard API é bloqueada na maioria dos
+  // navegadores mobile e o window.prompt é NO-OP em PWA standalone no iOS — então
+  // abrimos um <textarea> nosso, onde colar nativo (segurar → Colar) SEMPRE
+  // funciona. Quando a Clipboard API responde, já pré-preenchemos por conveniência.
+  const openPaste = useCallback(async () => {
+    let pre = ''
+    try {
+      pre = await navigator.clipboard.readText()
+    } catch {
+      pre = ''
+    }
+    setPasteText(pre)
+    setPasteOpen(true)
+  }, [])
+
+  // Desktop (Ctrl+Shift+V): cola direto se o clipboard permitir; senão cai na folha.
+  const pasteDirect = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        insertText(text, false)
+        return
+      }
+    } catch {
+      /* sem permissão de clipboard — usa a folha */
+    }
+    void openPaste()
+  }, [insertText, openPaste])
 
   const arm = useCallback(async () => {
     if (!daemonId) {
@@ -78,6 +129,25 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     term.loadAddon(fit)
     if (containerRef.current) term.open(containerRef.current)
     termRef.current = term
+
+    // Atalhos do terminal no padrão Linux/Pop OS (GNOME):
+    //   Ctrl+Shift+V → colar   ·   Ctrl+Shift+C → copiar a seleção
+    // O xterm.js não faz isso sozinho; sem este handler, colar "não acontece".
+    term.attachCustomKeyEventHandler((e) => {
+      if (e.type !== 'keydown' || !e.ctrlKey || !e.shiftKey) return true
+      const k = e.key.toLowerCase()
+      if (k === 'v') {
+        e.preventDefault()
+        void pasteDirect()
+        return false
+      }
+      if (k === 'c' && term.hasSelection()) {
+        e.preventDefault()
+        void navigator.clipboard.writeText(term.getSelection()).catch(() => {})
+        return false
+      }
+      return true
+    })
 
     const channel = supabase.channel(id, {
       config: { private: true, broadcast: { self: false } },
@@ -155,33 +225,18 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     }
 
     window.setTimeout(sendResize, 400)
-  }, [supabase, ownerId, daemonId])
+  }, [supabase, ownerId, daemonId, pasteDirect])
 
   useEffect(() => () => cleanupRef.current?.(), [])
 
-  const tapKey = (seq: string) => {
-    void channelRef.current?.send({ type: 'broadcast', event: 'i', payload: { d: seq } })
-    termRef.current?.focus()
-  }
+  // Ao abrir a folha de colar, foca o campo (no mobile o usuário toca pra colar).
+  useEffect(() => {
+    if (pasteOpen) pasteRef.current?.focus()
+  }, [pasteOpen])
 
-  // Colar no mobile, à prova de falhas: tenta a API de clipboard; se não rolar
-  // (iOS bloqueia bastante), abre um campo nativo onde você cola. Envia o texto
-  // CRU direto ao PTY (sem bracketed-paste). Remove a quebra final p/ não disparar.
-  const paste = async () => {
-    let text = ''
-    try {
-      text = await navigator.clipboard.readText()
-    } catch {
-      text = ''
-    }
-    if (!text) {
-      text = window.prompt('Cole o texto aqui e toque em OK:') ?? ''
-    }
-    text = text.replace(/\r?\n$/, '')
-    if (text && channelRef.current) {
-      void channelRef.current.send({ type: 'broadcast', event: 'i', payload: { d: text } })
-      termRef.current?.focus()
-    }
+  const tapKey = (seq: string) => {
+    sendInput(seq)
+    termRef.current?.focus()
   }
 
   const live = phase === 'active' || phase === 'arming'
@@ -221,7 +276,12 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
 
       {/* xterm (sempre montado para o ref existir) */}
       <div className={`relative flex-1 overflow-hidden ${live ? '' : 'hidden'}`}>
-        <div ref={containerRef} className="absolute inset-0 px-1 py-1" />
+        {/* tocar a área do terminal sempre refoca (reabre o teclado virtual) */}
+        <div
+          ref={containerRef}
+          onPointerDown={() => termRef.current?.focus()}
+          className="absolute inset-0 px-1 py-1"
+        />
       </div>
 
       {/* Tela de armar */}
@@ -267,7 +327,10 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
         <div className="flex gap-1.5 overflow-x-auto border-t border-[var(--color-border)] bg-[var(--color-bg)] px-2 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
-            onClick={() => void paste()}
+            // preventDefault no pointerdown: NÃO tira o foco do terminal (o teclado
+            // virtual continua aberto e a digitação não "morre" após tocar aqui).
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={() => void openPaste()}
             className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-xs text-[var(--color-fg)] transition active:bg-[var(--color-surface-2)]"
           >
             <IconClipboard size={14} /> Colar
@@ -276,12 +339,75 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
             <button
               key={k.label}
               type="button"
+              onPointerDown={(e) => e.preventDefault()}
               onClick={() => tapKey(k.seq)}
               className="min-w-11 shrink-0 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-xs text-[var(--color-fg)] transition active:bg-[var(--color-surface-2)]"
             >
               {k.label}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Folha de colar (mobile-proof) — substitui o window.prompt, que é no-op
+          em PWA standalone no iOS. Colar nativo num <textarea> sempre funciona. */}
+      {pasteOpen && (
+        <div
+          className="fixed inset-0 z-30 flex flex-col justify-end bg-black/50"
+          onPointerDown={() => setPasteOpen(false)}
+        >
+          <div
+            className="rounded-t-2xl border-t border-[var(--color-border)] bg-[var(--color-bg)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <div className="mb-1 flex items-center gap-2 text-sm font-semibold">
+              <IconClipboard size={16} /> Colar no terminal
+            </div>
+            <p className="mb-2 text-xs text-[var(--color-muted)]">
+              Cole (segure no campo → Colar) ou digite, depois escolha inserir.
+            </p>
+            <textarea
+              ref={pasteRef}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={3}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="Cole o comando aqui…"
+              className="w-full resize-none rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 font-mono text-sm outline-none focus:border-[var(--color-accent)]"
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPasteOpen(false)}
+                className="flex-1 rounded-lg border border-[var(--color-border)] px-3 py-2.5 text-sm text-[var(--color-muted)] transition active:scale-[0.99]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  insertText(pasteText, false)
+                  setPasteOpen(false)
+                }}
+                className="flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm font-medium text-[var(--color-fg)] transition active:scale-[0.99]"
+              >
+                Inserir
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  insertText(pasteText, true)
+                  setPasteOpen(false)
+                }}
+                className="flex-1 rounded-lg bg-[var(--color-accent)] px-3 py-2.5 text-sm font-semibold text-[var(--color-accent-fg)] transition active:scale-[0.99]"
+              >
+                Inserir e rodar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
