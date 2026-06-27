@@ -10,6 +10,7 @@ type XTerm = import('@xterm/xterm').Terminal
 type Phase = 'idle' | 'arming' | 'active' | 'closed'
 
 const KEYS: { label: string; seq: string }[] = [
+  { label: '⏎', seq: '\r' }, // Enter confiável no mobile (o do teclado virtual falha)
   { label: 'Esc', seq: '\x1b' },
   { label: 'Tab', seq: '\t' },
   { label: '^C', seq: '\x03' },
@@ -130,6 +131,23 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     if (containerRef.current) term.open(containerRef.current)
     termRef.current = term
 
+    // Enter do teclado virtual (mobile): raramente chega como keydown "Enter" — vem
+    // como inputType insertLineBreak, e às vezes o botão "Done/✓" só FECHA o teclado
+    // sem rodar nada. Então o \r não era enviado, o \n entrava no <textarea> escondido
+    // e desincronizava o input ("trava"). Interceptamos e mandamos \r direto ao PTY,
+    // sem deixar a quebra entrar no textarea. (Desktop usa o keydown do próprio xterm.)
+    const ta = term.textarea
+    if (ta) {
+      ta.setAttribute('enterkeyhint', 'enter') // dica: tecla de nova linha, não "Done"
+      ta.addEventListener('beforeinput', (ev) => {
+        const it = (ev as InputEvent).inputType
+        if (it === 'insertLineBreak' || it === 'insertParagraph') {
+          ev.preventDefault()
+          sendInput('\r')
+        }
+      })
+    }
+
     // Atalhos do terminal no padrão Linux/Pop OS (GNOME):
     //   Ctrl+Shift+V → colar   ·   Ctrl+Shift+C → copiar a seleção
     // O xterm.js não faz isso sozinho; sem este handler, colar "não acontece".
@@ -225,7 +243,7 @@ export function TerminalView({ ownerId, daemons }: { ownerId: string; daemons: D
     }
 
     window.setTimeout(sendResize, 400)
-  }, [supabase, ownerId, daemonId, pasteDirect])
+  }, [supabase, ownerId, daemonId, pasteDirect, sendInput])
 
   useEffect(() => () => cleanupRef.current?.(), [])
 
