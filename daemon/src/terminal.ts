@@ -14,7 +14,21 @@ interface Pty {
   proc: pty.IPty
   channel: RealtimeChannel
   lastActivity: number
+  /** Despacha imediatamente o que estiver no buffer de saída. */
+  flush: () => void
+  /** Cancela o timer de flush pendente (chamado no kill). */
+  dispose: () => void
 }
+
+// Coalescing da saída do PTY. Comandos verbosos (git clone, npm install, builds)
+// despejam a saída em centenas de pedaços minúsculos por segundo — sobretudo as
+// barras de progresso, que se redesenham via '\r'. Um broadcast por pedaço
+// estoura o limite de mensagens/segundo do Realtime (a saída "trava") e, no pior
+// caso, vira uma tempestade de POSTs REST quando o socket reconecta. Em vez disso
+// acumulamos os bytes e enviamos em lotes a cada FLUSH_MS.
+const FLUSH_MS = 30 // latência máxima imperceptível, ~33 lotes/s no teto
+const EARLY_FLUSH_BYTES = 16 * 1024 // dispara flush antes do timer se encher
+const MAX_MSG_BYTES = 96 * 1024 // fatia por mensagem (teto de payload do Broadcast ~256KB)
 
 /**
  * Gerencia terminais remotos (PTY) sob demanda. O celular cria uma linha em
@@ -107,16 +121,45 @@ export class TerminalManager {
       })
       await channel.subscribe()
 
+      // ----- saída do PTY com coalescing (ver constantes acima) -----
+      let buf = ''
+      let timer: ReturnType<typeof setTimeout> | null = null
+      const flush = () => {
+        if (timer) {
+          clearTimeout(timer)
+          timer = null
+        }
+        if (!buf) return
+        const data = buf
+        buf = ''
+        // fatia para nunca exceder o teto de payload do Broadcast
+        for (let i = 0; i < data.length; i += MAX_MSG_BYTES) {
+          const d = data.slice(i, i + MAX_MSG_BYTES)
+          void channel.send({ type: 'broadcast', event: 'o', payload: { d } })
+        }
+      }
+
       proc.onData((d) => {
         this.touch(row.id)
-        void channel.send({ type: 'broadcast', event: 'o', payload: { d } })
+        buf += d
+        if (buf.length >= EARLY_FLUSH_BYTES) flush()
+        else if (!timer) timer = setTimeout(flush, FLUSH_MS)
       })
       proc.onExit(({ exitCode }) => {
+        flush() // garante que a última saída chegue antes do 'x'
         void channel.send({ type: 'broadcast', event: 'x', payload: { code: exitCode } })
         this.kill(row.id, 'shell encerrado')
       })
 
-      this.ptys.set(row.id, { proc, channel, lastActivity: Date.now() })
+      this.ptys.set(row.id, {
+        proc,
+        channel,
+        lastActivity: Date.now(),
+        flush,
+        dispose: () => {
+          if (timer) clearTimeout(timer)
+        },
+      })
       await this.supabase.from('terminals').update({ status: 'active' }).eq('id', row.id)
       log.info(`terminal aberto (${row.id.slice(0, 8)}, cwd=${row.cwd || config.defaultCwd})`)
     } catch (err) {
@@ -137,6 +180,8 @@ export class TerminalManager {
     const t = this.ptys.get(id)
     if (!t) return
     this.ptys.delete(id)
+    t.flush() // drena o que sobrou no buffer antes de fechar o canal
+    t.dispose()
     try {
       t.proc.kill()
     } catch {
