@@ -7,6 +7,8 @@ import type { PermissionRequestRow } from '@/lib/database.types'
 export interface PermissionDecision {
   behavior: 'allow' | 'deny'
   message?: string
+  /** 'tool' = sempre permitir esta ferramenta nesta sessão; 'once' = só desta vez. */
+  scope?: 'once' | 'tool'
 }
 
 /**
@@ -21,15 +23,16 @@ export function PermissionCard({
   request: PermissionRequestRow
   onDecide: (req: PermissionRequestRow, decision: PermissionDecision) => Promise<void>
 }) {
-  const [busy, setBusy] = useState<null | 'allow' | 'deny'>(null)
+  const [busy, setBusy] = useState<null | 'allow' | 'always' | 'deny'>(null)
   const inputStr = JSON.stringify(request.input, null, 2)
 
-  async function decide(behavior: 'allow' | 'deny') {
-    setBusy(behavior)
+  async function decide(action: 'allow' | 'always' | 'deny') {
+    setBusy(action)
     try {
       await onDecide(request, {
-        behavior,
-        message: behavior === 'deny' ? 'Negado pelo usuário.' : undefined,
+        behavior: action === 'deny' ? 'deny' : 'allow',
+        scope: action === 'always' ? 'tool' : 'once',
+        message: action === 'deny' ? 'Negado pelo usuário.' : undefined,
       })
     } finally {
       setBusy(null)
@@ -71,6 +74,17 @@ export function PermissionCard({
             {busy === 'deny' ? 'Negando…' : 'Negar'}
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => decide('always')}
+          disabled={busy !== null}
+          className="mt-2 w-full rounded-xl border border-[var(--color-border)] bg-transparent px-4 py-2.5 text-sm font-medium text-[var(--color-muted)] transition active:scale-[0.99] hover:text-[var(--color-fg)] disabled:opacity-60"
+        >
+          {busy === 'always'
+            ? 'Liberando…'
+            : `Sempre permitir ${request.tool_name} nesta sessão`}
+        </button>
       </div>
     </div>
   )

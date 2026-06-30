@@ -30,6 +30,14 @@ export function spawnOpenClaude(
       '--output-format',
       'stream-json',
       '--verbose',
+      // Delega os pedidos de permissão ao "host" (este daemon) pelo protocolo
+      // can_use_tool sobre stdio. SEM isto, o OpenClaude resolve a permissão
+      // localmente (hasPermissionsToUseTool) e NUNCA emite o control_request —
+      // logo o card "Aprovar" nunca chega ao celular e Bash/Write/Edit são
+      // bloqueados em silêncio. Com 'stdio', read-only é auto-permitido e o
+      // resto vira can_use_tool, tratado em daemon.onPermissionRequest.
+      '--permission-prompt-tool',
+      'stdio',
     ],
     { cwd, env: process.env, stdio: ['pipe', 'pipe', 'pipe'] },
   )

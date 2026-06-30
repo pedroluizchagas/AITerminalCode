@@ -225,11 +225,23 @@ export interface UserTurnPayload {
   content: string | unknown[]
 }
 
+/**
+ * Escopo da decisão de permissão:
+ *  - 'once' (default): vale só para este pedido;
+ *  - 'tool': "sempre permitir" — o daemon passa a auto-aprovar as próximas
+ *    chamadas desta mesma ferramenta nesta sessão (em memória, dura o ciclo
+ *    de vida da sessão; some quando a sessão é encerrada).
+ */
+export type PermissionScope = 'once' | 'tool'
+
 export interface PermissionResPayload {
   request_id: string
   behavior: PermissionBehavior
   message?: string
   updatedInput?: Record<string, unknown>
+  scope?: PermissionScope
+  /** Nome da ferramenta — necessário p/ a allowlist da sessão quando scope='tool'. */
+  tool_name?: string
 }
 
 // ============================================================================

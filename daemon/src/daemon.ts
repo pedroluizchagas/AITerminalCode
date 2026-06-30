@@ -36,6 +36,8 @@ export class Daemon {
   private channels = new Map<string, RealtimeChannel>()
   private sessions = new Map<string, SessionRow>()
   private lastActivity = new Map<string, number>()
+  /** "Sempre permitir": ferramentas auto-aprovadas por sessão (some ao encerrar). */
+  private sessionAllow = new Map<string, Set<string>>()
   private terminals: TerminalManager
 
   constructor(
@@ -66,7 +68,10 @@ export class Daemon {
         { event: 'UPDATE', schema: 'public', table: 'sessions' },
         (payload) => {
           const row = payload.new as { id: string; status: string }
-          if (row.status === 'closed') this.killChild(row.id, 'sessão encerrada')
+          if (row.status === 'closed') {
+            this.killChild(row.id, 'sessão encerrada')
+            this.sessionAllow.delete(row.id) // "sempre permitir" não sobrevive ao fim da sessão
+          }
         },
       )
       .subscribe((status) => log.info('inbound channel:', status))
@@ -86,6 +91,19 @@ export class Daemon {
     child.kill()
     this.children.delete(sessionId)
     this.lastActivity.delete(sessionId)
+    // NB: a allowlist de "sempre permitir" NÃO é limpa aqui de propósito — ela
+    // sobrevive ao reaping por ociosidade (o processo reinicia, a sessão segue).
+    // Só é descartada quando a sessão é encerrada (handler de status='closed').
+  }
+
+  /** Marca uma ferramenta como "sempre permitir" nesta sessão (auto-aprova as próximas). */
+  private allowToolForSession(sessionId: string, tool: string): void {
+    let set = this.sessionAllow.get(sessionId)
+    if (!set) {
+      set = new Set()
+      this.sessionAllow.set(sessionId, set)
+    }
+    set.add(tool)
   }
 
   /** Varre e encerra processos ociosos (libera memória). */
@@ -207,6 +225,10 @@ export class Daemon {
         const child = this.children.get(row.session_id)
         if (!child) return log.warn('permission_res sem child ativo')
         if (p.behavior === 'allow') {
+          if (p.scope === 'tool' && p.tool_name) {
+            this.allowToolForSession(row.session_id, p.tool_name)
+            log.info(`"sempre permitir" ${p.tool_name} (session=${row.session_id.slice(0, 8)})`)
+          }
           child.write(buildAllow(p.request_id, p.updatedInput ?? {}))
         } else {
           child.write(buildDeny(p.request_id, p.message ?? 'Negado pelo usuário no celular'))
@@ -311,6 +333,11 @@ export class Daemon {
     if (config.autoApproveReadonly && !toolNeedsApproval(tool)) {
       this.children.get(sessionId)?.write(buildAllow(req.request_id, req.request.input))
       log.info(`auto-aprovado ${tool}`)
+      return
+    }
+    if (this.sessionAllow.get(sessionId)?.has(tool)) {
+      this.children.get(sessionId)?.write(buildAllow(req.request_id, req.request.input))
+      log.info(`auto-aprovado (sempre permitir) ${tool}`)
       return
     }
     // persiste o pedido e avisa o celular

@@ -196,6 +196,8 @@ export function ChatView({
         payload: {
           request_id: req.request_id,
           behavior: decision.behavior,
+          ...(decision.scope ? { scope: decision.scope } : {}),
+          tool_name: req.tool_name,
           ...(decision.message ? { message: decision.message } : {}),
           updatedInput: req.input,
         },
