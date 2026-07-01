@@ -223,6 +223,43 @@ export interface Envelope<P = unknown> {
 
 export interface UserTurnPayload {
   content: string | unknown[]
+  /** Metadados dos arquivos enviados junto (o binário fica no Storage). */
+  attachments?: AttachmentMeta[]
+}
+
+// ============================================================================
+// 3b) Anexos — arquivos enviados pelo celular junto de um user_turn
+// ============================================================================
+
+/** Bucket privado no Supabase Storage onde a PWA sobe os anexos. */
+export const ATTACHMENTS_BUCKET = 'attachments'
+
+/** Limite por arquivo — espelha o file_size_limit do bucket (migration). */
+export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024
+
+/**
+ * Metadados de UM anexo, gravados no payload do user_turn. O binário nunca
+ * passa pela tabela `messages` (limite de payload do Realtime): a PWA sobe ao
+ * Storage e o daemon baixa pelo storage_path — ambos na conta do dono, então
+ * a mesma RLS cobre os dois lados.
+ */
+export interface AttachmentMeta {
+  /** Caminho no bucket: <owner_id>/<session_id>/<uuid>/<nome-original>. */
+  storage_path: string
+  name: string
+  mime: string
+  size: number
+}
+
+/** Tipos de imagem que a Anthropic API aceita como bloco `image` base64. */
+const IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+
+export function isImageMime(mime: string): boolean {
+  return IMAGE_MIMES.has(mime)
+}
+
+export function isPdfMime(mime: string): boolean {
+  return mime === 'application/pdf'
 }
 
 /**

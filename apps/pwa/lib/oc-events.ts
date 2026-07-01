@@ -6,6 +6,8 @@
  * narrowing defensivo. Nada explode se o formato vier ligeiramente diferente.
  */
 
+import type { AttachmentMeta } from '@ati/protocol'
+
 export interface TextBlock {
   type: 'text'
   text: string
@@ -145,6 +147,25 @@ export function systemInitInfo(payload: unknown): SystemInitInfo {
     cwd: typeof r.cwd === 'string' ? r.cwd : null,
     tools: Array.isArray(r.tools) ? r.tools.filter((t): t is string => typeof t === 'string') : [],
   }
+}
+
+/** Anexos da minha mensagem (user_turn) — narrowing defensivo do payload cru. */
+export function userTurnAttachments(payload: unknown): AttachmentMeta[] {
+  const r = asRecord(payload)
+  const list = r?.attachments
+  if (!Array.isArray(list)) return []
+  const out: AttachmentMeta[] = []
+  for (const raw of list) {
+    const a = asRecord(raw)
+    if (!a || typeof a.storage_path !== 'string' || typeof a.name !== 'string') continue
+    out.push({
+      storage_path: a.storage_path,
+      name: a.name,
+      mime: typeof a.mime === 'string' ? a.mime : 'application/octet-stream',
+      size: typeof a.size === 'number' ? a.size : 0,
+    })
+  }
+  return out
 }
 
 /** Texto da minha mensagem (user_turn) gravada pelo phone. */

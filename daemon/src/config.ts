@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import os from 'node:os'
+import path from 'node:path'
 
 function req(name: string): string {
   const v = process.env[name]
@@ -22,4 +23,7 @@ export const config = {
   // Encerra um terminal (PTY) após este tempo sem atividade (trava de segurança).
   idleTermMs: Number(process.env.IDLE_TERM_MIN ?? '15') * 60_000,
   shell: process.env.SHELL?.trim() || 'bash',
+  // Onde os anexos vindos do celular são salvos (uma pasta por sessão).
+  attachmentsDir:
+    process.env.ATTACHMENTS_DIR?.trim() || path.join(os.homedir(), '.oc-bridge', 'attachments'),
 }

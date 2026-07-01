@@ -126,6 +126,32 @@ export function IconStop(p: IconProps) {
   )
 }
 
+export function IconPaperclip(p: IconProps) {
+  return (
+    <Line {...p}>
+      <path d="M20 11.5l-7.8 7.8a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.4a1.7 1.7 0 0 1-2.4-2.4L15 7" />
+    </Line>
+  )
+}
+
+export function IconX(p: IconProps) {
+  return (
+    <Line {...p}>
+      <path d="M6 6l12 12" />
+      <path d="M18 6L6 18" />
+    </Line>
+  )
+}
+
+export function IconFile(p: IconProps) {
+  return (
+    <Line {...p}>
+      <path d="M13.5 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5L13.5 3z" />
+      <path d="M13.5 3v5.5H19" />
+    </Line>
+  )
+}
+
 export function IconClipboard(p: IconProps) {
   return (
     <Line {...p}>

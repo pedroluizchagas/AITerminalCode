@@ -18,6 +18,7 @@ import {
   type SystemInitInfo,
 } from '@/lib/oc-events'
 import { BROADCAST_STREAM_EVENT } from '@ati/protocol'
+import { uploadAttachments } from '@/lib/attachments'
 import { MessageItem } from './MessageItem'
 import { PermissionCard, type PermissionDecision } from './PermissionCard'
 import { Composer } from './Composer'
@@ -152,19 +153,29 @@ export function ChatView({
 
   // ---- ações ----
   const sendPrompt = useCallback(
-    async (text: string) => {
+    async (text: string, files: File[]) => {
       setWorking(true)
-      const { error } = await supabase.from('messages').insert({
-        session_id: sessionId,
-        owner_id: ownerId,
-        source: 'phone',
-        kind: 'user_turn',
-        payload: { content: text },
-      })
-      if (error) {
+      try {
+        // 1) binários vão para o Storage (bucket privado); o daemon baixa de lá
+        const attachments = files.length
+          ? await uploadAttachments(supabase, ownerId, sessionId, files)
+          : []
+        // 2) o turno carrega só texto + metadados dos anexos
+        const { error } = await supabase.from('messages').insert({
+          session_id: sessionId,
+          owner_id: ownerId,
+          source: 'phone',
+          kind: 'user_turn',
+          payload: {
+            content: text,
+            ...(attachments.length ? { attachments } : {}),
+          },
+        })
+        if (error) throw error
+      } catch (err) {
         setWorking(false)
-        console.error('Falha ao enviar prompt:', error.message)
-        throw error
+        console.error('Falha ao enviar prompt:', (err as Error).message)
+        throw err
       }
     },
     [supabase, sessionId, ownerId],

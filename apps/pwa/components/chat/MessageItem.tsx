@@ -9,8 +9,10 @@ import {
   isUserEcho,
   resultInfo,
   toolResults,
+  userTurnAttachments,
   userTurnText,
 } from '@/lib/oc-events'
+import { AttachmentList } from './AttachmentList'
 import { ToolCall } from './ToolCall'
 import { ToolResult } from './ToolResult'
 
@@ -22,12 +24,16 @@ export function MessageItem({ message }: { message: MessageRow }) {
   // Meu prompt
   if (message.kind === 'user_turn') {
     const text = userTurnText(message.payload)
-    if (!text) return null
+    const attachments = userTurnAttachments(message.payload)
+    if (!text && attachments.length === 0) return null
     return (
-      <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap break-anywhere rounded-2xl rounded-br-md bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent-fg)]">
-          {text}
-        </div>
+      <div className="flex flex-col items-end gap-1.5">
+        <AttachmentList attachments={attachments} />
+        {text && (
+          <div className="max-w-[85%] whitespace-pre-wrap break-anywhere rounded-2xl rounded-br-md bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-[var(--color-accent-fg)]">
+            {text}
+          </div>
+        )}
       </div>
     )
   }

@@ -14,6 +14,7 @@ import {
 } from '@ati/protocol'
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js'
 import { existsSync, statSync } from 'node:fs'
+import { cleanupSessionAttachments, prepareTurnContent } from './attachments.js'
 import { config } from './config.js'
 import { log } from './log.js'
 import { spawnOpenClaude, type OcChild } from './openclaude.js'
@@ -71,6 +72,7 @@ export class Daemon {
           if (row.status === 'closed') {
             this.killChild(row.id, 'sessão encerrada')
             this.sessionAllow.delete(row.id) // "sempre permitir" não sobrevive ao fim da sessão
+            void cleanupSessionAttachments(row.id) // cópias locais dos anexos idem
           }
         },
       )
@@ -151,11 +153,8 @@ export class Daemon {
         // turnos recém-chegados são tratados pela subscription ao vivo
         if (Date.now() - Date.parse(last.created_at as string) < 10_000) continue
 
-        const content = (last.payload as UserTurnPayload).content
         log.info(`catch-up: turno pendente reprocessado (session=${s.id.slice(0, 8)})`)
-        await this.setDaemonStatus('working')
-        const child = await this.ensureChild(s.id)
-        child.write(buildUserTurn(content))
+        await this.sendUserTurn(s.id, last.payload as UserTurnPayload)
       }
     } catch (err) {
       log.warn('catch-up falhou:', (err as Error).message)
@@ -214,11 +213,7 @@ export class Daemon {
     try {
       if (!(await this.routeToMe(row.session_id))) return // sessão de outra máquina
       if (row.kind === 'user_turn') {
-        const { content } = row.payload as UserTurnPayload
-        await this.setDaemonStatus('working')
-        const child = await this.ensureChild(row.session_id)
-        this.lastActivity.set(row.session_id, Date.now())
-        child.write(buildUserTurn(content))
+        await this.sendUserTurn(row.session_id, row.payload as UserTurnPayload)
         log.info(`turno recebido (session=${row.session_id.slice(0, 8)})`)
       } else if (row.kind === 'permission_res') {
         const p = row.payload as PermissionResPayload
@@ -256,6 +251,19 @@ export class Daemon {
   // --------------------------------------------------------------------------
   // daemon -> filho OpenClaude
   // --------------------------------------------------------------------------
+
+  /**
+   * Entrega um user_turn ao processo da sessão. Se o turno traz anexos, baixa
+   * do Storage e monta blocos de conteúdo (imagem/documento/caminho local);
+   * sem anexos, o content segue intocado. Usado no fluxo ao vivo e no catch-up.
+   */
+  private async sendUserTurn(sessionId: string, payload: UserTurnPayload): Promise<void> {
+    await this.setDaemonStatus('working')
+    const content = await prepareTurnContent(this.supabase, sessionId, payload)
+    const child = await this.ensureChild(sessionId)
+    this.lastActivity.set(sessionId, Date.now())
+    child.write(buildUserTurn(content))
+  }
 
   private async ensureChild(sessionId: string): Promise<OcChild> {
     const existing = this.children.get(sessionId)
