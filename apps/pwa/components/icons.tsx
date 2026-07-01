@@ -126,6 +126,22 @@ export function IconStop(p: IconProps) {
   )
 }
 
+export function IconChevronDown(p: IconProps) {
+  return (
+    <Line {...p}>
+      <path d="M6 9.5l6 6 6-6" />
+    </Line>
+  )
+}
+
+export function IconCheck(p: IconProps) {
+  return (
+    <Line {...p}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Line>
+  )
+}
+
 export function IconPaperclip(p: IconProps) {
   return (
     <Line {...p}>

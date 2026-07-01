@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { MODEL_OPTIONS } from '@ati/protocol'
 import { IconPlus } from '@/components/icons'
 import type { DaemonRow, SessionRow } from '@/lib/database.types'
 
@@ -18,6 +19,7 @@ export function NewSessionButton({
   const [title, setTitle] = useState('')
   const [projectPath, setProjectPath] = useState('')
   const [daemonId, setDaemonId] = useState<string>(daemons[0]?.id ?? '')
+  const [model, setModel] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -37,6 +39,7 @@ export function NewSessionButton({
         title: title.trim() || null,
         project_path: path || null,
         daemon_id: daemonId || null,
+        model: model || null,
         status: 'active',
       })
       .select('id')
@@ -111,6 +114,25 @@ export function NewSessionButton({
             </select>
           </div>
         )}
+
+        <div>
+          <label htmlFor="ns-model" className="text-xs text-[var(--color-muted)]">
+            Modelo
+          </label>
+          <select
+            id="ns-model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] px-3 py-2 text-sm outline-none focus:border-[var(--color-accent)]"
+          >
+            {MODEL_OPTIONS.map((m) => (
+              <option key={m.value ?? 'default'} value={m.value ?? ''}>
+                {m.label}
+                {m.hint ? ` — ${m.hint}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {error && <p className="text-sm text-[var(--color-danger)]">{error}</p>}
 

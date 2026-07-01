@@ -20,6 +20,7 @@ import {
 import { BROADCAST_STREAM_EVENT } from '@ati/protocol'
 import { uploadAttachments } from '@/lib/attachments'
 import { MessageItem } from './MessageItem'
+import { ModelPicker } from './ModelPicker'
 import { PermissionCard, type PermissionDecision } from './PermissionCard'
 import { Composer } from './Composer'
 import { SessionActions } from '@/components/SessionActions'
@@ -45,6 +46,7 @@ export function ChatView({
   const [pending, setPending] = useState<PermissionRequestRow[]>(initialPending)
   const [liveText, setLiveText] = useState('')
   const [working, setWorking] = useState(false)
+  const [model, setModel] = useState<string | null>(session.model)
 
   const seenMessageIds = useRef<Set<string>>(new Set(initialMessages.map((m) => m.id)))
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -235,6 +237,23 @@ export function ChatView({
     [supabase, sessionId, ownerId],
   )
 
+  const changeModel = useCallback(
+    async (next: string | null) => {
+      // O daemon reage ao UPDATE de sessions: aplica no processo vivo
+      // (set_model) ou no próximo spawn (--model).
+      const { error } = await supabase
+        .from('sessions')
+        .update({ model: next })
+        .eq('id', sessionId)
+      if (error) {
+        console.error('Falha ao trocar modelo:', error.message)
+        throw error
+      }
+      setModel(next)
+    },
+    [supabase, sessionId],
+  )
+
   const closed = session.status === 'closed'
 
   return (
@@ -252,9 +271,17 @@ export function ChatView({
           <h1 className="truncate text-sm font-semibold">
             {session.title?.trim() || 'Sessão'}
           </h1>
-          <p className="truncate font-mono text-[11px] text-[var(--color-muted)]">
-            {initInfo?.model ? `${initInfo.model} · ` : ''}
-            {initInfo?.cwd || session.project_path || 'sem cwd'}
+          <p className="flex items-center gap-1 truncate font-mono text-[11px] text-[var(--color-muted)]">
+            <ModelPicker
+              value={model}
+              runningModel={initInfo?.model ?? null}
+              disabled={closed}
+              onChange={changeModel}
+            />
+            <span className="shrink-0">·</span>
+            <span className="truncate">
+              {initInfo?.cwd || session.project_path || 'sem cwd'}
+            </span>
           </p>
         </div>
         <SessionActions session={session} redirectOnDelete />

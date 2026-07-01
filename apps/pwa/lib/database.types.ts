@@ -40,6 +40,8 @@ export type SessionRow = {
   project_path: string | null
   title: string | null
   status: SessionStatus
+  /** Modelo de IA da sessão (null = padrão do OpenClaude). */
+  model: string | null
   created_at: string
   updated_at: string
 }

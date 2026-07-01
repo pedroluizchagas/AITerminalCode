@@ -39,7 +39,14 @@ export interface OcInterrupt {
   request: { subtype: 'interrupt' }
 }
 
-export type OcStdin = OcUserTurn | OcControlResponseSuccess | OcInterrupt
+/** Troca o modelo do processo VIVO (equivale ao /model do modo interativo). */
+export interface OcSetModel {
+  type: 'control_request'
+  request_id: string
+  request: { subtype: 'set_model'; model: string }
+}
+
+export type OcStdin = OcUserTurn | OcControlResponseSuccess | OcInterrupt | OcSetModel
 
 // ============================================================================
 // 2) OpenClaude — STDOUT (processo filho -> daemon)
@@ -196,6 +203,41 @@ export function buildDeny(requestId: string, message: string): OcControlResponse
 export function buildInterrupt(requestId: string): OcInterrupt {
   return { type: 'control_request', request_id: requestId, request: { subtype: 'interrupt' } }
 }
+
+/** `model` null volta ao padrão (alias 'default' do OpenClaude). */
+export function buildSetModel(requestId: string, model: string | null): OcSetModel {
+  return {
+    type: 'control_request',
+    request_id: requestId,
+    request: { subtype: 'set_model', model: model ?? 'default' },
+  }
+}
+
+// ============================================================================
+// Modelos — opções expostas no seletor do celular (equivalente ao /model)
+// ============================================================================
+
+export interface ModelOption {
+  /** Alias aceito pelo OpenClaude (--model / set_model). null = padrão. */
+  value: string | null
+  label: string
+  hint?: string
+}
+
+/**
+ * Aliases (não IDs fixos): o OpenClaude resolve cada um para o modelo mais
+ * novo daquela família, então a lista não envelhece a cada release da API.
+ */
+export const MODEL_OPTIONS: ModelOption[] = [
+  { value: null, label: 'Padrão', hint: 'decisão do OpenClaude' },
+  { value: 'best', label: 'Best', hint: 'o mais capaz disponível' },
+  { value: 'opus', label: 'Opus', hint: 'tarefas complexas' },
+  { value: 'sonnet', label: 'Sonnet', hint: 'equilíbrio velocidade/capacidade' },
+  { value: 'haiku', label: 'Haiku', hint: 'rápido e econômico' },
+  { value: 'opusplan', label: 'OpusPlan', hint: 'Opus planeja, Sonnet executa' },
+  { value: 'sonnet[1m]', label: 'Sonnet 1M', hint: 'contexto de 1 milhão de tokens' },
+  { value: 'opus[1m]', label: 'Opus 1M', hint: 'contexto de 1 milhão de tokens' },
+]
 
 // ============================================================================
 // 3) Envelope — camada de transporte phone <-> daemon (tabela `messages`)

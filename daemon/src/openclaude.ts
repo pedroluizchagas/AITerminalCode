@@ -34,9 +34,13 @@ export const OPENCLAUDE_ARGS = [
  *   node <bin> --print --input-format stream-json --output-format stream-json --verbose
  * O stdin fica aberto para múltiplos turnos. Cada linha do stdout é um objeto
  * NDJSON entregue em onMessage.
+ *
+ * `model` (opcional) vira `--model <valor>` — a escolha feita no celular
+ * (sessions.model). Ausente, vale o padrão do OpenClaude.
  */
 export function spawnOpenClaude(
   cwd: string,
+  model: string | null,
   onMessage: (msg: Record<string, unknown>) => void,
   onExit: (code: number | null) => void,
 ): OcChild {
@@ -51,10 +55,14 @@ export function spawnOpenClaude(
   }
 
   const args = [config.openclaudeBin, ...OPENCLAUDE_ARGS]
+  if (model) args.push('--model', model)
   // Deixa a delegação de permissão VISÍVEL no log — assim dá pra confirmar num
   // relance que este processo está rodando o código novo (stdio), não um
   // daemon "velho" ainda em memória (tsx `start` não faz hot-reload).
-  log.info('spawn openclaude — delegação de permissão: stdio (can_use_tool)')
+  log.info(
+    `spawn openclaude — delegação de permissão: stdio (can_use_tool)` +
+      (model ? `, model=${model}` : ''),
+  )
   log.debug('argv:', process.execPath, args.join(' '))
 
   const proc = spawn(process.execPath, args, {

@@ -2,6 +2,7 @@ import {
   buildAllow,
   buildDeny,
   buildInterrupt,
+  buildSetModel,
   buildUserTurn,
   isCanUseToolRequest,
   isForwardableEvent,
@@ -24,6 +25,7 @@ import { TerminalManager } from './terminal.js'
 interface SessionRow {
   id: string
   project_path: string | null
+  model: string | null
 }
 
 interface PhoneRow {
@@ -68,12 +70,14 @@ export class Daemon {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'sessions' },
         (payload) => {
-          const row = payload.new as { id: string; status: string }
+          const row = payload.new as { id: string; status: string; model: string | null }
           if (row.status === 'closed') {
             this.killChild(row.id, 'sessão encerrada')
             this.sessionAllow.delete(row.id) // "sempre permitir" não sobrevive ao fim da sessão
             void cleanupSessionAttachments(row.id) // cópias locais dos anexos idem
+            return
           }
+          this.onSessionModelChange(row.id, row.model ?? null)
         },
       )
       .subscribe((status) => log.info('inbound channel:', status))
@@ -96,6 +100,34 @@ export class Daemon {
     // NB: a allowlist de "sempre permitir" NÃO é limpa aqui de propósito — ela
     // sobrevive ao reaping por ociosidade (o processo reinicia, a sessão segue).
     // Só é descartada quando a sessão é encerrada (handler de status='closed').
+  }
+
+  /**
+   * Modelo trocado pelo celular (UPDATE em sessions). O evento chega para
+   * QUALQUER update da linha (rename, touch de updated_at…), então só age
+   * quando o valor de fato mudou em relação ao cache:
+   *  - processo vivo → control_request set_model (troca sem perder o contexto);
+   *  - sem processo  → o cache atualizado garante o --model no próximo spawn.
+   */
+  private onSessionModelChange(sessionId: string, model: string | null): void {
+    const cached = this.sessions.get(sessionId)
+    if (!cached) return // nunca toquei nesta sessão; getSession busca fresco quando precisar
+    const prev = cached.model ?? null
+    if (prev === model) return
+    cached.model = model
+    const child = this.children.get(sessionId)
+    if (child) {
+      child.write(buildSetModel(crypto.randomUUID(), model))
+      log.info(
+        `modelo trocado ao vivo: ${prev ?? 'padrão'} → ${model ?? 'padrão'} ` +
+          `(session=${sessionId.slice(0, 8)})`,
+      )
+    } else {
+      log.info(
+        `modelo da sessão atualizado p/ próximo spawn: ${model ?? 'padrão'} ` +
+          `(session=${sessionId.slice(0, 8)})`,
+      )
+    }
   }
 
   /** Marca uma ferramenta como "sempre permitir" nesta sessão (auto-aprova as próximas). */
@@ -285,6 +317,7 @@ export class Daemon {
 
     const child = spawnOpenClaude(
       cwd,
+      session.model,
       (msg) => void this.onChildMessage(sessionId, msg),
       () => {
         this.children.delete(sessionId)
@@ -424,7 +457,7 @@ export class Daemon {
     if (cached) return cached
     const { data, error } = await this.supabase
       .from('sessions')
-      .select('id, project_path')
+      .select('id, project_path, model')
       .eq('id', sessionId)
       .single()
     if (error || !data) throw new Error(`sessão ${sessionId} não encontrada: ${error?.message}`)
