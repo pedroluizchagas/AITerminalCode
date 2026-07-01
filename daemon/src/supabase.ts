@@ -8,25 +8,56 @@ export interface DaemonContext {
   daemonId: string
 }
 
+/**
+ * Retenta uma operação de rede com backoff exponencial. No boot (ex.: logo após
+ * o PC ligar, ou numa queda de DNS momentânea) o `signInWithPassword` falha com
+ * "fetch failed / ENOTFOUND"; sem retry o processo morre com exit 1 e entra em
+ * crash-loop pelo systemd — perdendo o estado em memória a cada volta. Retentar
+ * mantém o daemon de pé e o boot previsível.
+ */
+async function withRetry<T>(label: string, fn: () => Promise<T>, tries = 6): Promise<T> {
+  let lastErr: unknown
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastErr = err
+      if (attempt === tries) break
+      const waitMs = Math.min(1000 * 2 ** (attempt - 1), 15_000) // 1s,2s,4s,8s,15s
+      log.warn(
+        `${label} falhou (tentativa ${attempt}/${tries}): ` +
+          `${(err as Error).message}. Retentando em ${waitMs}ms…`,
+      )
+      await new Promise((r) => setTimeout(r, waitMs))
+    }
+  }
+  throw new Error(
+    `${label} falhou após ${tries} tentativas: ` +
+      `${lastErr instanceof Error ? lastErr.message : String(lastErr)}`,
+  )
+}
+
 /** Loga o daemon na conta do dono e garante a autorização do Realtime. */
 export async function initSupabase(): Promise<{ supabase: SupabaseClient; ownerId: string }> {
   const supabase = createClient(config.supabaseUrl, config.supabaseAnonKey, {
     auth: { persistSession: false, autoRefreshToken: true },
   })
 
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email: config.ownerEmail,
-    password: config.ownerPassword,
+  const user = await withRetry('Login do daemon', async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: config.ownerEmail,
+      password: config.ownerPassword,
+    })
+    // Erro de rede vem em `error` (não como throw); levanto pra acionar o retry.
+    if (error || !data.user) throw new Error(error?.message ?? 'sem usuário')
+    return data.user
   })
-  if (error || !data.user) {
-    throw new Error(`Login do daemon falhou: ${error?.message ?? 'sem usuário'}`)
-  }
 
   // autoriza canais privados do Realtime com o token da sessão
   await supabase.realtime.setAuth()
 
-  log.info(`daemon autenticado como ${data.user.email} (${data.user.id})`)
-  return { supabase, ownerId: data.user.id }
+  log.info(`daemon autenticado como ${user.email} (${user.id})`)
+  return { supabase, ownerId: user.id }
 }
 
 /** Registra/atualiza este daemon e devolve seu id. */

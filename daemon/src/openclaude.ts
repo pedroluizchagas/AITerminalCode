@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { config } from './config.js'
 import { log } from './log.js'
 
@@ -8,6 +9,25 @@ export interface OcChild {
   write: (obj: unknown) => void
   kill: () => void
 }
+
+/**
+ * Argumentos do OpenClaude headless. O `--permission-prompt-tool stdio` é o que
+ * faz o filho DELEGAR a permissão a este daemon (via can_use_tool sobre stdio)
+ * em vez de resolvê-la localmente. Sem ele, em modo `--print` toda decisão
+ * "ask" (Bash/Write/curl/…) vira um DENY local — e o celular recebe só o erro
+ * ("This command requires approval", "…multiple operations", etc.), nunca o card
+ * de aprovação. Mantido como const única para ficar auditável em um só lugar.
+ */
+export const OPENCLAUDE_ARGS = [
+  '--print',
+  '--input-format',
+  'stream-json',
+  '--output-format',
+  'stream-json',
+  '--verbose',
+  '--permission-prompt-tool',
+  'stdio',
+] as const
 
 /**
  * Sobe um processo OpenClaude headless em modo Agent SDK (stdio):
@@ -20,27 +40,28 @@ export function spawnOpenClaude(
   onMessage: (msg: Record<string, unknown>) => void,
   onExit: (code: number | null) => void,
 ): OcChild {
-  const proc = spawn(
-    process.execPath,
-    [
-      config.openclaudeBin,
-      '--print',
-      '--input-format',
-      'stream-json',
-      '--output-format',
-      'stream-json',
-      '--verbose',
-      // Delega os pedidos de permissão ao "host" (este daemon) pelo protocolo
-      // can_use_tool sobre stdio. SEM isto, o OpenClaude resolve a permissão
-      // localmente (hasPermissionsToUseTool) e NUNCA emite o control_request —
-      // logo o card "Aprovar" nunca chega ao celular e Bash/Write/Edit são
-      // bloqueados em silêncio. Com 'stdio', read-only é auto-permitido e o
-      // resto vira can_use_tool, tratado em daemon.onPermissionRequest.
-      '--permission-prompt-tool',
-      'stdio',
-    ],
-    { cwd, env: process.env, stdio: ['pipe', 'pipe', 'pipe'] },
-  )
+  // Preflight: um OPENCLAUDE_BIN inexistente (ou build antigo, sem suporte a
+  // `--permission-prompt-tool stdio`) é uma causa silenciosa de "não pede
+  // aprovação". Falhar aqui com mensagem clara evita horas de depuração.
+  if (!existsSync(config.openclaudeBin)) {
+    log.error(
+      `OPENCLAUDE_BIN não encontrado: ${config.openclaudeBin} — ` +
+        `builde o OpenClaude (dist/cli.mjs) e confira daemon/.env`,
+    )
+  }
+
+  const args = [config.openclaudeBin, ...OPENCLAUDE_ARGS]
+  // Deixa a delegação de permissão VISÍVEL no log — assim dá pra confirmar num
+  // relance que este processo está rodando o código novo (stdio), não um
+  // daemon "velho" ainda em memória (tsx `start` não faz hot-reload).
+  log.info('spawn openclaude — delegação de permissão: stdio (can_use_tool)')
+  log.debug('argv:', process.execPath, args.join(' '))
+
+  const proc = spawn(process.execPath, args, {
+    cwd,
+    env: process.env,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
 
   let buf = ''
   proc.stdout?.setEncoding('utf8')
