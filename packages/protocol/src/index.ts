@@ -227,9 +227,15 @@ export interface ModelOption {
 /**
  * Aliases (não IDs fixos): o OpenClaude resolve cada um para o modelo mais
  * novo daquela família, então a lista não envelhece a cada release da API.
+ *
+ * Exceção: Fable NÃO tem alias no clone (`--model fable` quebra o turno com
+ * erro sintético) — entra por ID completo, verificado ao vivo no spawn e no
+ * set_model. Quando sair um Fable novo, atualizar os IDs aqui.
  */
 export const MODEL_OPTIONS: ModelOption[] = [
   { value: null, label: 'Padrão', hint: 'decisão do OpenClaude' },
+  { value: 'claude-fable-5', label: 'Fable 5', hint: 'tier acima do Opus' },
+  { value: 'claude-fable-5[1m]', label: 'Fable 5 1M', hint: 'contexto de 1 milhão de tokens' },
   { value: 'best', label: 'Best', hint: 'o mais capaz disponível' },
   { value: 'opus', label: 'Opus', hint: 'tarefas complexas' },
   { value: 'sonnet', label: 'Sonnet', hint: 'equilíbrio velocidade/capacidade' },

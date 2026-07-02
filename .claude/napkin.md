@@ -13,6 +13,7 @@
 - Migrations: `supabase db push` (CLI já linkada ao projeto yuzpncdhpmevxanxhgst).
 
 ## Armadilhas
+- O header do chat tem `backdrop-blur` — `backdrop-filter` cria containing block: QUALQUER `position:fixed` renderizado dentro dele se posiciona relativo ao header, não à viewport. Overlays/sheets/modais devem ir por `createPortal(document.body)` (padrão em ModelPicker; animações `ati-sheet`/`ati-overlay` no globals.css).
 - Binário grande NUNCA vai em `messages.payload` (limite de payload do postgres_changes) — usar o bucket privado `attachments` e gravar só metadados `{storage_path,name,mime,size}`.
 - Scripts .ts soltos rodados com tsx fora do repo caem em CJS (sem top-level await) e não resolvem deps do workspace — usar `.mts` DENTRO de um pacote do repo.
 - `pgrep -f` casa com o próprio shell do comando quando o padrão aparece na linha de comando; e o tsx do daemon também roda um `…tsx/dist/cli.mjs`. P/ achar filhos OpenClaude de verdade: `ps -eo pid,cmd | grep 'openclaude/dist/cli.mjs' | grep -v grep` (ou filtrar `bash -c`).
