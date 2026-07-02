@@ -84,3 +84,86 @@ body {
   color: var(--color-accent);
   animation: ati-blink 1s step-end infinite;
 }
+
+/*
+  Bottom sheet (celular) que vira dialog centrado em telas ≥sm.
+  Motion: entrada desacelerada (MD3 emphasized), saída acelerada e mais
+  curta — personalidade "corporate", sem overshoot. Camadas: sheet (primária),
+  backdrop (secundária), cascata dos itens (ambiente).
+*/
+@keyframes ati-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes ati-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes ati-sheet-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes ati-sheet-down {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+@keyframes ati-dialog-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ati-dialog-out {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 0; transform: translateY(8px) scale(0.97); }
+}
+@keyframes ati-item-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ati-overlay {
+  animation: ati-fade-in 200ms ease-out both;
+}
+.ati-overlay[data-closing='true'] {
+  animation: ati-fade-out 180ms ease-in both;
+}
+
+.ati-sheet {
+  animation: ati-sheet-up 320ms cubic-bezier(0.05, 0.7, 0.1, 1) both;
+}
+.ati-sheet[data-closing='true'] {
+  animation: ati-sheet-down 200ms cubic-bezier(0.3, 0, 1, 1) both;
+}
+/* arrastando com o dedo: o transform passa a ser controlado por JS */
+.ati-sheet[data-dragging='true'] {
+  animation: none;
+  transition: none;
+}
+
+.ati-sheet-item {
+  animation: ati-item-in 200ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@media (min-width: 640px) {
+  .ati-sheet {
+    animation-name: ati-dialog-in;
+    animation-duration: 260ms;
+  }
+  .ati-sheet[data-closing='true'] {
+    animation-name: ati-dialog-out;
+    animation-duration: 180ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ati-sheet,
+  .ati-overlay {
+    animation: ati-fade-in 150ms ease-out both;
+  }
+  .ati-sheet[data-closing='true'],
+  .ati-overlay[data-closing='true'] {
+    animation: ati-fade-out 150ms ease-in both;
+  }
+  .ati-sheet-item {
+    animation: none;
+  }
+}
